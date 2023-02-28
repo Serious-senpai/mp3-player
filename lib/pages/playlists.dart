@@ -38,10 +38,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final _searchingString = ValueNotifier<String?>(null);
-  bool _searchingAutoFocus = false;
   bool get _isSearching => _searchingString.value is String;
   set _isSearching(bool value) {
-    if (_isSearching != value) _searchingString.value = value ? "" : null;
+    if (value) {
+      _searchingString.value ??= "";
+    } else {
+      _searchingString.value = null;
+    }
   }
 
   void openDrawer() {
@@ -539,11 +542,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   decoration: const InputDecoration(border: InputBorder.none, hintText: "Search track title"),
                   keyboardType: TextInputType.text,
                   showCursor: true,
-                  autofocus: _searchingAutoFocus,
+                  autofocus: _searchingString.value!.isEmpty,
                   enableSuggestions: false,
                   onChanged: (value) {
                     _searchingString.value = value;
-                    _searchingAutoFocus = false;
                   },
                 ),
               ),
@@ -606,7 +608,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 seperator,
                 TextButton(
                   onPressed: () {
-                    _isSearching = _searchingAutoFocus = true;
+                    _isSearching = true;
                     refresh();
                   },
                   child: const Icon(Icons.search_outlined),
