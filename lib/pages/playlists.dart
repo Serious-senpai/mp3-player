@@ -479,6 +479,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       playlist.displayArtists,
                       style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
                     ),
+                    initiallyExpanded: _isSearching,
                     children: List<Widget>.generate(
                       playlist.tracks.length + 4,
                       (index) {
