@@ -21,17 +21,17 @@ class _PlayingInfo {
   PlaylistData? get playlist => state.value.first;
 
   /// The playing index
-  int get index => state.value.second;
+  int? get index => state.value.second;
 
   /// The playing track
-  Track? get track => playlist == null ? null : playlist![index];
+  Track? get track => (playlist == null || index == null) ? null : playlist![index!];
 
   final _player = AssetsAudioPlayer();
   final _completer = Event();
   final _rng = Random();
 
   /// [ValueNotifier] of the current playing track
-  final state = ValueNotifier<Pair<PlaylistData?, int>>(Pair<PlaylistData?, int>(null, -1));
+  final state = ValueNotifier<Pair<PlaylistData?, int?>>(Pair<PlaylistData?, int?>(null, null));
 
   bool _repeatOne = false;
   bool _shuffle = false;
@@ -50,14 +50,12 @@ class _PlayingInfo {
     _completer.set();
   }
 
-  void update(PlaylistData? playlist, int index) {
-    state.value = Pair<PlaylistData?, int>(playlist, index);
+  void update(PlaylistData? playlist, int? index) {
+    state.value = Pair<PlaylistData?, int?>(playlist, index);
   }
 
   Future<void> play({required PlaylistData playlist, required int index}) async {
-    if (track != null) {
-      await stop();
-    }
+    if (track != null) await stop();
 
     update(playlist, index);
     Directory? tempDir;
@@ -104,6 +102,7 @@ class _PlayingInfo {
         ),
         playInBackground: PlayInBackground.enabled,
         audioFocusStrategy: const AudioFocusStrategy.request(resumeAfterInterruption: true),
+        forceOpen: true,
       );
       var subscription = _player.playlistAudioFinished.listen(
         (event) {
@@ -132,7 +131,7 @@ class _PlayingInfo {
   Future<void> stop() async {
     _stopRequest = true;
     await _player.stop();
-    update(null, -1);
+    update(null, null);
   }
 
   Future<void> previous() async {
@@ -154,14 +153,16 @@ class _PlayingInfo {
   void toggleShuffle() => _shuffle = !_shuffle;
 
   void updateIndex(int change) {
-    var length = playlist!.length, index = this.index + change;
+    if (index != null) {
+      var length = playlist!.length, index = this.index! + change;
 
-    if (index < 0) {
-      index += length * (-index / length).ceil();
+      if (index < 0) {
+        index += length * (-index / length).ceil();
+      }
+
+      index %= length;
+      update(playlist, index);
     }
-
-    index %= length;
-    update(playlist, index);
   }
 }
 

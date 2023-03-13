@@ -94,7 +94,7 @@ class PlaylistData {
   Future<void> remove(int index) async {
     tracks.removeAt(index);
     if (playing) {
-      if (index < _state.playingInfo.index) {
+      if (index < _state.playingInfo.index!) {
         _state.playingInfo.updateIndex(-1);
       }
     }
