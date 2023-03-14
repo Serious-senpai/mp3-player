@@ -24,7 +24,7 @@ class _PlayingInfo {
   int? get index => state.value.second;
 
   /// The playing track
-  Track? get track => (playlist == null || index == null) ? null : playlist![index!];
+  Track? get track => isPlaying ? playlist![index!] : null;
 
   final _player = AssetsAudioPlayer();
   final _completer = Event();
@@ -32,6 +32,9 @@ class _PlayingInfo {
 
   /// [ValueNotifier] of the current playing track
   final state = ValueNotifier<Pair<PlaylistData?, int?>>(Pair<PlaylistData?, int?>(null, null));
+
+  /// Whether the player is currently playing a track
+  bool get isPlaying => playlist != null && index != null;
 
   bool _repeatOne = false;
   bool _shuffle = false;
@@ -55,7 +58,7 @@ class _PlayingInfo {
   }
 
   Future<void> play({required PlaylistData playlist, required int index}) async {
-    if (track != null) await stop();
+    if (isPlaying) await stop();
 
     update(playlist, index);
     Directory? tempDir;
@@ -153,7 +156,7 @@ class _PlayingInfo {
   void toggleShuffle() => _shuffle = !_shuffle;
 
   void updateIndex(int change) {
-    if (index != null) {
+    if (isPlaying) {
       var length = playlist!.length, index = this.index! + change;
 
       if (index < 0) {
