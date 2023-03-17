@@ -80,7 +80,7 @@ abstract class Track {
 
 class LocalTrack extends Track {
   @override
-  String get databaseUri => "[LOCAL]$uri";
+  String get databaseUri => "[!LOCAL]$uri";
 
   LocalTrack({
     required String uri,
@@ -179,7 +179,7 @@ class YouTubeTrack extends Track {
   static final _converter = Uri.https("www.y2mate.com", "/mates/convertV2/index");
 
   @override
-  String get databaseUri => "[YOUTUBE]$uri";
+  String get databaseUri => "[!YOUTUBE]$uri";
 
   /// The video ID
   String get videoId => uri;
