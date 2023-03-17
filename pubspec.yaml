@@ -1,5 +1,5 @@
 name: mp3_player
-description: MP3 player for Android
+description: Play local MP3 files and audio from YouTube on Android devices
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -38,6 +38,7 @@ dependencies:
   external_path: 1.0.3
   filesystem_picker: 3.1.0
   fluttertoast: 8.1.2
+  http: 0.13.5
   path: 1.8.2
   path_provider: 2.0.12
   permission_handler: 10.2.0

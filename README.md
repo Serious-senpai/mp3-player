@@ -1,5 +1,5 @@
 ## MP3 Player
-MP3 player for Android
+Play local MP3 files and audio from YouTube on Android devices
 
 ### Build from source
 - Initialize the project with

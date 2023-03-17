@@ -3,16 +3,17 @@ import "package:flutter/material.dart";
 import "core/client.dart";
 import "pages/current.dart";
 import "pages/playlists.dart";
+import "pages/youtube.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  var client = await Client.create();
+  var client = await MP3Client.create();
   runApp(MainApp(client: client));
 }
 
 class MainApp extends StatelessWidget {
-  final Client client;
+  final MP3Client client;
 
   const MainApp({Key? key, required this.client}) : super(key: key);
 
@@ -29,6 +30,7 @@ class MainApp extends StatelessWidget {
       routes: {
         "/current": (context) => CurrentPage(client: client),
         "/playlists": (context) => PlaylistPage(client: client),
+        "/youtube": (context) => YouTubePage(client: client),
       },
     );
   }

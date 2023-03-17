@@ -4,11 +4,10 @@ import "package:flutter/material.dart";
 
 import "drawer.dart";
 import "../core/client.dart";
-import "../core/errors.dart";
 import "../core/utils.dart";
 
 class CurrentPage extends StatefulWidget {
-  final Client client;
+  final MP3Client client;
 
   const CurrentPage({required this.client, Key? key}) : super(key: key);
 
@@ -16,24 +15,8 @@ class CurrentPage extends StatefulWidget {
   State<CurrentPage> createState() => _CurrentPageState();
 }
 
-class _CurrentPageState extends State<CurrentPage> {
-  Client get client => widget.client;
-
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  void openDrawer() {
-    var state = _scaffoldKey.currentState;
-    if (state != null) {
-      state.openDrawer();
-    }
-  }
-
-  void closeDrawer() {
-    var state = _scaffoldKey.currentState;
-    if (state != null) {
-      state.closeDrawer();
-    }
-  }
+class _CurrentPageState extends State<CurrentPage> with PageStateWithDrawer<CurrentPage> {
+  MP3Client get client => widget.client;
 
   void refresh() {
     if (mounted) setState(() {});
@@ -41,7 +24,7 @@ class _CurrentPageState extends State<CurrentPage> {
 
   Widget constructPage(BuildContext context, AsyncSnapshot<RealtimePlayingInfos> snapshot) {
     if (snapshot.hasError) {
-      throw OperationException(constructPage, snapshot.error);
+      throw snapshot.error!;
     }
 
     var data = snapshot.data;
@@ -139,13 +122,13 @@ class _CurrentPageState extends State<CurrentPage> {
       }
     }
 
-    return const Center(child: Text("No playing audio"));
+    return const Center(child: Text("Waiting to play audio"));
   }
 
   @override
   Widget build(BuildContext context) {
     var scaffold = Scaffold(
-      key: _scaffoldKey,
+      key: scaffoldKey,
       appBar: AppBar(
         leading: TextButton(
           onPressed: () => openDrawer(),

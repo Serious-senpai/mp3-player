@@ -1,6 +1,5 @@
 import "dart:async";
 import "dart:convert";
-import "dart:io";
 import "dart:math";
 
 import "package:assets_audio_player/assets_audio_player.dart";
@@ -8,15 +7,15 @@ import "package:async_locks/async_locks.dart";
 import "package:audiotagger/audiotagger.dart";
 import "package:flutter/foundation.dart";
 import "package:path/path.dart";
-import "package:path_provider/path_provider.dart";
 import "package:rxdart/rxdart.dart";
 import "package:sqflite/sqflite.dart";
 
 import "playlists.dart";
 import "tracks.dart";
 import "utils.dart";
+import "youtube.dart";
 
-class _PlayingInfo {
+class PlayingInfo {
   /// The playing playlist
   PlaylistData? get playlist => state.value.first;
 
@@ -49,7 +48,7 @@ class _PlayingInfo {
 
   int? _indexUpdate;
 
-  _PlayingInfo() {
+  PlayingInfo() {
     _completer.set();
   }
 
@@ -61,38 +60,12 @@ class _PlayingInfo {
     if (isPlaying) await stop();
 
     update(playlist, index);
-    Directory? tempDir;
-    try {
-      tempDir = await getTemporaryDirectory();
-    } on MissingPlatformDirectoryException {
-      // pass
-    }
 
     _stopRequest = _repeatOne = _shuffle = false;
     while (!_stopRequest) {
       var track = this.track!;
 
-      String? thumbnailPath;
-      if (tempDir != null && track.thumbnail != null) {
-        thumbnailPath = join(tempDir.path, "${track.title}.jpg");
-        await File(thumbnailPath).writeAsBytes(track.thumbnail!);
-      }
-
-      var audio = Audio.file(
-        track.path,
-        metas: Metas(
-          title: track.title,
-          artist: track.artist,
-          album: track.album,
-          image: thumbnailPath != null
-              ? MetasImage(
-                  path: thumbnailPath,
-                  type: ImageType.file,
-                )
-              : null,
-        ),
-      );
-
+      var audio = await track.toAudio();
       _completer.clear();
       await _player.open(
         audio,
@@ -169,7 +142,7 @@ class _PlayingInfo {
   }
 }
 
-class Client {
+class MP3Client {
   /// The local SQLite database
   final Database database;
 
@@ -180,9 +153,12 @@ class Client {
   final _trackCache = <String, Track>{};
 
   /// Information about the current track
-  final playingInfo = _PlayingInfo();
+  final playingInfo = PlayingInfo();
 
-  Client(this.database);
+  late final YouTubeClient ytClient;
+
+  /// Construct a new [MP3Client]
+  MP3Client(this.database);
 
   /// Fetch a playlist (if exists) from the database with the given [id]
   Future<PlaylistData?> fetchPlaylist(int id) async {
@@ -212,15 +188,15 @@ class Client {
     return playlists;
   }
 
-  /// Construct a playlist from a database row
+  /// Construct a playlist from a database [row]
   Future<PlaylistData> playlistFromRow(Map<String, dynamic> row) async {
     if (_playlistCache[row["id"]] != null) {
       return _playlistCache[row["id"]]!;
     }
 
     var tracks = <Track>[];
-    for (String path in jsonDecode(row["items"])) {
-      var track = await createTrack(path);
+    for (String uri in jsonDecode(row["items"])) {
+      var track = await createTrack(uri);
       if (track != null) {
         tracks.add(track);
       }
@@ -234,11 +210,6 @@ class Client {
   /// The [fetchPlaylists] method is then reloaded in [futureSingleton]
   Future<void> removePlaylist(int id) async {
     _playlistCache.remove(id);
-    await database.delete(
-      "playlists",
-      where: "id = ?",
-      whereArgs: [id],
-    );
 
     futureSingleton.reloadFuture(fetchPlaylists);
   }
@@ -260,31 +231,8 @@ class Client {
     return result!;
   }
 
-  /// Create a [Track] from a local path
-  Future<Track?> createTrack(String path) async {
-    if (_trackCache[path] != null) {
-      return _trackCache[path];
-    }
-
-    if (!await checkPath(path)) {
-      return null;
-    }
-
-    var tag = await tagger.readTags(path: path);
-    var title = basenameWithoutExtension(path);
-    if (tag != null && tag.title != null && tag.title!.isNotEmpty) {
-      title = tag.title!;
-    }
-
-    return _trackCache[path] = Track(
-      path: path,
-      title: title,
-      artist: tag?.artist,
-      album: tag?.album,
-      thumbnail: await tagger.readArtwork(path: path),
-      client: this,
-    );
-  }
+  /// Create a [Track] from its database URI
+  Future<Track?> createTrack(String uri) => Track.createTrack(client: this, uri: uri, cache: _trackCache);
 
   Future<void> play({required PlaylistData playlist, required int index}) => playingInfo.play(playlist: playlist, index: index);
   Future<void> previous() => playingInfo.previous();
@@ -296,20 +244,22 @@ class Client {
   void toggleRepeat() => playingInfo.toggleRepeat();
   void toggleShuffle() => playingInfo.toggleShuffle();
 
-  /// Create a [Client] instance
-  static Future<Client> create() async {
+  /// Create a [MP3Client] instance
+  static Future<MP3Client> create() async {
     var databaseDir = await getDatabasesPath();
     var database = await openDatabase(
       join(databaseDir, "mp3_player.db"),
-      version: 1,
-      onCreate: (database, version) async {
+      onOpen: (database) async {
         var batch = database.batch();
-        batch.execute("CREATE TABLE playlists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, items TEXT NOT NULL, created_at TEXT NOT NULL)");
+        batch.execute("CREATE TABLE IF NOT EXISTS playlists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, items TEXT NOT NULL, created_at TEXT NOT NULL);");
+        batch.execute("CREATE TABLE IF NOT EXISTS youtube (id TEXT PRIMARY KEY, title TEXT NOT NULL);");
 
         await batch.commit(noResult: true);
       },
     );
 
-    return Client(database);
+    var result = MP3Client(database);
+    result.ytClient = await YouTubeClient.create(result);
+    return result;
   }
 }

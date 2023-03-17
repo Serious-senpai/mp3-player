@@ -24,7 +24,7 @@ enum TrackOption {
 }
 
 class PlaylistPage extends StatefulWidget {
-  final Client client;
+  final MP3Client client;
 
   const PlaylistPage({required this.client, Key? key}) : super(key: key);
 
@@ -32,10 +32,8 @@ class PlaylistPage extends StatefulWidget {
   State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
-class _PlaylistPageState extends State<PlaylistPage> {
-  Client get client => widget.client;
-
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
+class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<PlaylistPage> {
+  MP3Client get client => widget.client;
 
   final _searchingString = ValueNotifier<String?>(null);
   bool get _isSearching => _searchingString.value is String;
@@ -44,20 +42,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
       _searchingString.value ??= "";
     } else {
       _searchingString.value = null;
-    }
-  }
-
-  void openDrawer() {
-    var state = _scaffoldKey.currentState;
-    if (state != null) {
-      state.openDrawer();
-    }
-  }
-
-  void closeDrawer() {
-    var state = _scaffoldKey.currentState;
-    if (state != null) {
-      state.closeDrawer();
     }
   }
 
@@ -105,7 +89,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             rootDirectory: target,
             title: "Choose a folder or an audio file",
             requestPermission: () async {
-              var status = await Permission.storage.request();
+              var status = await Permission.manageExternalStorage.request();
               return status.isGranted;
             },
             itemFilter: (entity, path, name) => entity is Directory || (entity is File && name.endsWith(".mp3")),
@@ -530,7 +514,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   @override
   Widget build(BuildContext context) {
     var scaffold = Scaffold(
-      key: _scaffoldKey,
+      key: scaffoldKey,
       appBar: _isSearching
           ? AppBar(
               leading: TextButton(

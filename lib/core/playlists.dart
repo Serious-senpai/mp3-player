@@ -30,7 +30,7 @@ class PlaylistData {
   /// Whether this playlist is being played
   bool get playing => this == _state.playingInfo.playlist;
 
-  final Client _state;
+  final MP3Client _state;
 
   PlaylistData(this._id, this._name, this._tracks, this._createdAt, this._state);
 
@@ -69,7 +69,7 @@ class PlaylistData {
           "items": jsonEncode(
             List<String>.generate(
               tracks.length,
-              (index) => tracks[index].path,
+              (index) => tracks[index].databaseUri,
             ),
           ),
           "created_at": createdAt.toIso8601String(),
@@ -79,7 +79,7 @@ class PlaylistData {
       );
 
   /// Remove this playlist from the database
-  Future<void> removePlaylist() => _state.removePlaylist(id);
+  Future<void> removePlaylist() => _state.database.delete("playlists", where: "id = ?", whereArgs: [id]);
 
   /// Add a [Track] to this playlist and immediately [push] to the database
   Future<void> add(Track track) => addAll([track]);
