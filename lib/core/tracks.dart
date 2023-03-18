@@ -179,7 +179,7 @@ class LocalTrack extends Track {
   Future<bool> editTitle(String newTitle) async {
     var status = await _state.tagger.writeTag(path: uri, tagField: "title", value: newTitle) ?? false;
     if (!status) {
-      var permissionStatus = await Permission.manageExternalStorage.request();
+      var permissionStatus = await Permission.storage.request();
       if (permissionStatus.isGranted) {
         status = await _state.tagger.writeTag(path: uri, tagField: "title", value: newTitle) ?? false;
       }

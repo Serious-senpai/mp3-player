@@ -89,7 +89,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
             rootDirectory: target,
             title: "Choose a folder or an audio file",
             requestPermission: () async {
-              var status = await Permission.manageExternalStorage.request();
+              var status = await Permission.storage.request();
               return status.isGranted;
             },
             itemFilter: (entity, path, name) => entity is Directory || (entity is File && name.endsWith(".mp3")),
@@ -555,6 +555,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
                           decoration: const InputDecoration.collapsed(hintText: "Playlist name"),
                           keyboardType: TextInputType.text,
                           showCursor: true,
+                          autofocus: true,
                           enableSuggestions: false,
                           maxLength: 50,
                           maxLengthEnforcement: MaxLengthEnforcement.enforced,
