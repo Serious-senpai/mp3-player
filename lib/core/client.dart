@@ -1,5 +1,4 @@
 import "dart:async";
-import "dart:convert";
 import "dart:io";
 import "dart:math";
 
@@ -16,7 +15,7 @@ import "tracks.dart";
 import "utils.dart";
 import "youtube.dart";
 
-/// Display the current procress of the audio player
+/// Display the current process of the audio player
 class PlayingInfo {
   /// The playing playlist
   PlaylistData? get playlist => state.value.first;
@@ -174,113 +173,37 @@ class MP3Client {
   /// [Audiotagger] to fetch tags from MP3 files
   final tagger = Audiotagger();
 
-  final _playlistCache = <int, PlaylistData>{};
-  final _trackCache = <String, Track>{};
-
   /// Information about the current track
   final playingInfo = PlayingInfo();
-
-  /// Iterable of all current playlists
-  Iterable<PlaylistData> get allPlaylists => _playlistCache.values;
 
   /// The [YouTubeClient] to access content from YouTube, will be null when Internet
   /// is not available
   YouTubeClient? ytClient;
 
+  Future<List<PlaylistData>>? _fetchPlaylistsFuture;
+
+  /// A [Future] of [fetchPlaylists] for a future builder to listen to
+  Future<List<PlaylistData>> get fetchPlaylistsFuture => _fetchPlaylistsFuture = _fetchPlaylistsFuture ?? PlaylistData.fetchPlaylists(client: this);
+
   /// Construct a new [MP3Client]
   MP3Client(this.database);
 
-  /// Initialize the internal [YouTubeClient]
+  /// Initialize the internal [YouTubeClient] if it hasn't been initialized yet
   ///
   /// May throw [SocketException] if Internet is not available
   Future<void> initializeYtClient() async {
     if (ytClient == null) {
       ytClient = await YouTubeClient.create(this);
-      _playlistCache.clear();
-      _trackCache.clear();
-      updatePlaylists();
+      PlaylistData.clearCache();
+      Track.clearCache();
+      updateFetchPlaylistsFuture();
     }
   }
 
-  /// Fetch a playlist (if exists) from the database with the given [id]
-  Future<PlaylistData?> fetchPlaylist(int id) async {
-    var result = await database.query(
-      "playlists",
-      distinct: true,
-      where: "id = ?",
-      whereArgs: [id],
-    );
-
-    if (result.isNotEmpty) {
-      assert(result.length == 1);
-      return playlistFromRow(result[0]);
-    }
-
-    return null;
+  /// Refresh [fetchPlaylistsFuture]
+  void updateFetchPlaylistsFuture() {
+    _fetchPlaylistsFuture = PlaylistData.fetchPlaylists(client: this);
   }
-
-  /// Fetch all playlists from the database
-  Future<List<PlaylistData>> fetchPlaylists() async {
-    var playlists = <PlaylistData>[];
-    var results = await database.query("playlists", distinct: true);
-    for (var result in results) {
-      playlists.add(await playlistFromRow(result));
-    }
-
-    updatePlaylists();
-
-    return playlists;
-  }
-
-  /// Construct a playlist from a database [row]
-  Future<PlaylistData> playlistFromRow(Map<String, dynamic> row) async {
-    if (_playlistCache[row["id"]] != null) {
-      return _playlistCache[row["id"]]!;
-    }
-
-    var tracks = <Track>[];
-    for (String uri in jsonDecode(row["items"])) {
-      var track = await createTrack(uri);
-      if (track != null) {
-        tracks.add(track);
-      }
-    }
-
-    return _playlistCache[row["id"]] = PlaylistData(row["id"], row["name"], tracks, DateTime.parse(row["created_at"]), this);
-  }
-
-  /// Remove a [PlaylistData] from the cache and the database
-  ///
-  /// The [fetchPlaylists] method is then reloaded in [futureSingleton]
-  Future<void> removePlaylist(int id) async {
-    var playlist = await fetchPlaylist(id);
-    if (playlist != null) {
-      await playlist.removePlaylist();
-      _playlistCache.remove(id);
-
-      updatePlaylists();
-    }
-  }
-
-  /// Create a new playlist with [name]
-  Future<PlaylistData> createPlaylist(String name) async {
-    var id = await database.insert(
-      "playlists",
-      {
-        "name": name,
-        "items": "[]",
-        "created_at": DateTime.now().toIso8601String(),
-      },
-    );
-
-    updatePlaylists();
-
-    var result = await fetchPlaylist(id);
-    return result!;
-  }
-
-  /// Create a [Track] from its database URI
-  Future<Track?> createTrack(String uri) => Track.createTrack(client: this, databaseUri: uri, cache: _trackCache);
 
   /// See [PlayingInfo.play]
   Future<void> play({required PlaylistData playlist, required int index}) => playingInfo.play(playlist: playlist, index: index);
@@ -325,12 +248,12 @@ class MP3Client {
 
     var result = MP3Client(database);
     try {
-      await result.initializeYtClient();
+      result.initializeYtClient();
     } on SocketException {
       // pass
     }
 
-    await result.fetchPlaylists();
+    await PlaylistData.fetchPlaylists(client: result);
     return result;
   }
 }

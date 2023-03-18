@@ -16,6 +16,11 @@ abstract class Track {
   static final _localTrackMatcher = RegExp(r"(?<=\[!LOCAL\])(.+)");
   static final _youtubeTrackMatcher = RegExp(r"(?<=\[!YOUTUBE\])(.+)");
 
+  static final _trackCache = <String, Track>{};
+
+  /// Clear the internal cache
+  static void clearCache() => _trackCache.clear();
+
   /// The URI of the track
   String uri;
 
@@ -30,9 +35,9 @@ abstract class Track {
 
   final MP3Client _state;
 
-  /// An unique URI that can be used to identify the type of track([LocalTrack], [YouTubeTrack])
+  /// An unique URI that can be used to identify the type of track([LocalTrack], [YouTubeTrack],...)
   /// as well as its [uri]
-  String get databaseUri => throw UnimplementedError();
+  String get databaseUri;
 
   /// Initialize a new [Track]
   Track({
@@ -44,44 +49,28 @@ abstract class Track {
   }) : _state = client;
 
   /// A [Widget] that displays the thumbnail of the track
-  Widget displayThumbnail({double? size}) => throw UnimplementedError();
+  Widget displayThumbnail({double? size});
 
   /// Edit the title of the track
-  Future<bool> editTitle(String newTitle) => throw UnimplementedError();
+  Future<bool> editTitle({required String newTitle});
 
   /// Convert this track to a playable [Audio]
-  Future<Audio> toAudio() => throw UnimplementedError();
+  Future<Audio> toAudio();
 
   /// Create a new [Track] of a suitable type
   static Future<Track?> createTrack({
     required MP3Client client,
     required String databaseUri,
-    required Map<String, Track> cache,
   }) async {
-    if (cache[databaseUri] != null) {
-      return cache[databaseUri];
+    if (_trackCache[databaseUri] != null) {
+      return _trackCache[databaseUri];
     }
 
     var realUri = _localTrackMatcher.stringMatch(databaseUri);
     if (realUri != null) {
-      var exists = await File(realUri).exists();
-      if (!exists) {
-        return null;
-      }
-
-      var tag = await client.tagger.readTags(path: realUri);
-      var title = basenameWithoutExtension(realUri);
-      if (tag != null && tag.title != null && tag.title!.isNotEmpty) {
-        title = tag.title!;
-      }
-
-      return LocalTrack(
-        uri: realUri,
-        title: title,
-        artist: tag?.artist,
-        album: tag?.album,
-        client: client,
-      );
+      var track = await LocalTrack.fromPath(client: client, realUri: realUri);
+      if (track != null) _trackCache[databaseUri] = track;
+      return track;
     }
 
     realUri = _youtubeTrackMatcher.stringMatch(databaseUri);
@@ -93,7 +82,7 @@ abstract class Track {
         // pass
       }
 
-      return track;
+      return _trackCache[databaseUri] = track;
     }
 
     throw LogicalFlowException(createTrack);
@@ -105,6 +94,7 @@ class DummyTrack extends Track {
   @override
   String get databaseUri => uri;
 
+  /// Constructs a new [DummyTrack]
   DummyTrack({
     required String databaseUri,
     required String title,
@@ -128,18 +118,20 @@ class DummyTrack extends Track {
       );
 
   @override
-  Future<bool> editTitle(String newTitle) async => false;
+  Future<bool> editTitle({required String newTitle}) async => false;
 
   @override
   Future<Audio> toAudio() async => Audio("assets/silence.mp3");
 }
 
+/// Represents a [Track] from a local file in the filesystem
 class LocalTrack extends Track {
   @override
   String get databaseUri => "[!LOCAL]$uri";
 
   Future<String?>? _thumbnailPathFuture;
 
+  /// Construct a new [LocalTrack]
   LocalTrack({
     required String uri,
     required String title,
@@ -156,7 +148,7 @@ class LocalTrack extends Track {
 
   @override
   Widget displayThumbnail({double? size}) {
-    _thumbnailPathFuture = _thumbnailPathFuture ?? createThumbnailImage();
+    _thumbnailPathFuture = _thumbnailPathFuture ?? saveThumbnailImage();
     return FutureBuilder(
       future: _thumbnailPathFuture,
       builder: (context, snapshot) => snapshot.data == null
@@ -176,7 +168,7 @@ class LocalTrack extends Track {
   }
 
   @override
-  Future<bool> editTitle(String newTitle) async {
+  Future<bool> editTitle({required String newTitle}) async {
     var status = await _state.tagger.writeTag(path: uri, tagField: "title", value: newTitle) ?? false;
     if (!status) {
       var permissionStatus = await Permission.storage.request();
@@ -190,7 +182,7 @@ class LocalTrack extends Track {
     return status;
   }
 
-  Future<String?> createThumbnailImage() async {
+  Future<String?> saveThumbnailImage() async {
     var data = await _state.tagger.readArtwork(path: uri);
     if (data != null) {
       try {
@@ -214,7 +206,7 @@ class LocalTrack extends Track {
 
   @override
   Future<Audio> toAudio() async {
-    var thumbnailPath = await createThumbnailImage();
+    var thumbnailPath = await saveThumbnailImage();
     return Audio.file(
       uri,
       metas: Metas(
@@ -231,11 +223,33 @@ class LocalTrack extends Track {
     );
   }
 
+  /// Create a [LocalTrack] from a local path
+  static Future<LocalTrack?> fromPath({required MP3Client client, required String realUri}) async {
+    var exists = await File(realUri).exists();
+    if (!exists) {
+      return null;
+    }
+
+    var tag = await client.tagger.readTags(path: realUri);
+    var title = basenameWithoutExtension(realUri);
+    if (tag != null && tag.title != null && tag.title!.isNotEmpty) {
+      title = tag.title!;
+    }
+
+    return LocalTrack(
+      uri: realUri,
+      title: title,
+      artist: tag?.artist,
+      album: tag?.album,
+      client: client,
+    );
+  }
+
   @override
   String toString() => "<LocalTrack title=$title artist=$artist>";
 }
 
-/// Represents a YouTube track.
+/// Represents a YouTube track
 class YouTubeTrack extends Track {
   static final _analyzer = Uri.https("www.y2mate.com", "/mates/analyzeV2/ajax");
   static final _converter = Uri.https("www.y2mate.com", "/mates/convertV2/index");
@@ -263,6 +277,7 @@ class YouTubeTrack extends Track {
   /// The [YouTubeClient] associated with this track
   YouTubeClient get ytClient => _state.ytClient!;
 
+  /// Construct a new [YouTubeTrack]
   YouTubeTrack({
     required String videoId,
     required String title,
@@ -287,11 +302,11 @@ class YouTubeTrack extends Track {
         thumbnailUrl.toString(),
         width: size,
         height: size,
-        fit: BoxFit.contain,
+        fit: BoxFit.cover,
       );
 
   @override
-  Future<bool> editTitle(String newTitle) async {
+  Future<bool> editTitle({required String newTitle}) async {
     var updated = await _state.database.update(
       "youtube",
       {"title": newTitle},

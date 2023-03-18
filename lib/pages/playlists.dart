@@ -106,7 +106,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
 
               Future<void> addEntity(FileSystemEntity entity) async {
                 if (entity is File) {
-                  var track = await client.createTrack(entity.path);
+                  var track = await LocalTrack.fromPath(client: client, realUri: entity.path);
                   if (track != null) tracks.add(track);
                 }
               }
@@ -126,7 +126,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
               break;
 
             case (FileSystemEntityType.file):
-              var track = await client.createTrack(pickedPath);
+              var track = await LocalTrack.fromPath(client: client, realUri: pickedPath);
               if (track == null) return;
 
               await playlist.add(track);
@@ -360,20 +360,20 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
             );
 
             if (newTitle != null) {
-              var status = await track.editTitle(newTitle);
+              var status = await track.editTitle(newTitle: newTitle);
 
               if (status) {
                 await Fluttertoast.showToast(msg: "Set track title to \"$newTitle\"");
                 refresh();
               } else {
-                await Fluttertoast.showToast(msg: "Unable to change track title");
+                await Fluttertoast.showToast(msg: "Unable to change track title!");
               }
             }
 
             return;
 
           case TrackOption.addToPlaylist:
-            var playlists = await client.fetchPlaylists();
+            var playlists = await PlaylistData.fetchPlaylists(client: client);
 
             if (!mounted) return;
 
@@ -416,75 +416,84 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
     );
   }
 
-  Widget playlistsDisplayBuilder(BuildContext context, AsyncSnapshot<void> snapshot) {
+  Widget constructPage(BuildContext context, AsyncSnapshot<List<PlaylistData>> snapshot) {
     if (snapshot.hasError) {
       throw snapshot.error!;
     }
 
-    var playlists = List<PlaylistData>.from(client.allPlaylists);
-    playlists.sort((first, second) => first.name.compareTo(second.name));
+    switch (snapshot.connectionState) {
+      case ConnectionState.waiting:
+        return Center(child: loadingIndicator(content: "Loading playlists"));
 
-    if (playlists.isEmpty) {
-      return Center(
-        child: RichText(
-          text: const TextSpan(
-            children: <InlineSpan>[
-              TextSpan(text: "Click "),
-              WidgetSpan(
-                alignment: PlaceholderAlignment.middle,
-                child: Icon(Icons.playlist_add),
+      case ConnectionState.done:
+        var playlists = snapshot.data!;
+        playlists.sort((first, second) => first.name.compareTo(second.name));
+
+        if (playlists.isEmpty) {
+          return Center(
+            child: RichText(
+              text: const TextSpan(
+                children: <InlineSpan>[
+                  TextSpan(text: "Click "),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Icon(Icons.playlist_add),
+                  ),
+                  TextSpan(text: " to create a new playlist"),
+                ],
               ),
-              TextSpan(text: " to create a new playlist"),
-            ],
-          ),
-        ),
-      );
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            Flexible(
+              child: ListView.builder(
+                itemCount: playlists.length,
+                itemBuilder: (context, playlistIndex) {
+                  var playlist = playlists[playlistIndex];
+                  return ExpansionTile(
+                    title: Text(
+                      "(${playlist.length}) ${playlist.name}",
+                      style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
+                    ),
+                    subtitle: Text(
+                      playlist.displayArtists,
+                      style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
+                    ),
+                    initiallyExpanded: _isSearching,
+                    children: List<Widget>.generate(
+                      playlist.tracks.length + 4,
+                      (index) {
+                        switch (index) {
+                          case 0:
+                            return addNewTrackButton(playlist);
+
+                          case 1:
+                            return editPlaylistNameButton(playlist);
+
+                          case 2:
+                            return clearPlaylistButton(playlist);
+
+                          case 3:
+                            return removePlaylistButton(playlist);
+
+                          default:
+                            return trackTile(playlists[playlistIndex], index - 4);
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+
+      default:
+        throw LogicalFlowException(constructPage);
     }
-
-    return Column(
-      children: [
-        Flexible(
-          child: ListView.builder(
-            itemCount: playlists.length,
-            itemBuilder: (context, playlistIndex) {
-              var playlist = playlists[playlistIndex];
-              return ExpansionTile(
-                title: Text(
-                  "(${playlist.length}) ${playlist.name}",
-                  style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
-                ),
-                subtitle: Text(
-                  playlist.displayArtists,
-                  style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
-                ),
-                initiallyExpanded: _isSearching,
-                children: List<Widget>.generate(
-                  playlist.tracks.length + 4,
-                  (index) {
-                    switch (index) {
-                      case 0:
-                        return addNewTrackButton(playlist);
-
-                      case 1:
-                        return editPlaylistNameButton(playlist);
-
-                      case 2:
-                        return clearPlaylistButton(playlist);
-
-                      case 3:
-                        return removePlaylistButton(playlist);
-
-                      default:
-                        return trackTile(playlists[playlistIndex], index - 4);
-                    }
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -572,7 +581,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
                     if (name == null) return;
 
                     if (name.isNotEmpty) {
-                      await client.createPlaylist(name);
+                      await PlaylistData.createPlaylist(client: client, name: name);
                       await Fluttertoast.showToast(msg: "Created a new playlist!");
                       refresh();
                     } else {
@@ -593,9 +602,9 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
               ],
             ),
       drawer: createPersistenDrawer(context: context, client: client),
-      body: StreamBuilder(
-        stream: playlistsUpdateSignal(),
-        builder: playlistsDisplayBuilder,
+      body: FutureBuilder(
+        future: client.fetchPlaylistsFuture,
+        builder: constructPage,
       ),
     );
 

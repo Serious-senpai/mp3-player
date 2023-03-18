@@ -45,7 +45,18 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
         autofocus: false,
         onSubmitted: (text) {
           if (text.isNotEmpty) {
-            searchFuture = client.ytClient?.search(text);
+            Future<List<YouTubeTrack>> generateSearchFuture() async {
+              try {
+                await client.initializeYtClient();
+                return await client.ytClient?.search(text) ?? [];
+              } on SocketException {
+                //pass
+              }
+
+              return [];
+            }
+
+            searchFuture = generateSearchFuture();
           }
           refresh();
         },
@@ -80,7 +91,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                         subtitle: Text(item.artist!), // We always know a YouTube video's author (i.e. channel)
                         trailing: TextButton(
                           onPressed: () async {
-                            var playlists = await client.fetchPlaylists();
+                            var playlists = await PlaylistData.fetchPlaylists(client: client);
 
                             if (!mounted) return;
 
