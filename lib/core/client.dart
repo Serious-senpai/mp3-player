@@ -55,6 +55,7 @@ class PlayingInfo {
   /// Initialize a new [PlayingInfo] instance
   PlayingInfo() {
     _completer.set();
+    _player.showNotification = true;
   }
 
   /// Update the current playing track
@@ -247,11 +248,15 @@ class MP3Client {
     );
 
     var result = MP3Client(database);
-    try {
-      result.initializeYtClient();
-    } on SocketException {
-      // pass
-    }
+    var future = result.initializeYtClient();
+    future.then(
+      (value) => null,
+      onError: (error, stackTrace) {
+        if (error is! SocketException) {
+          throw error;
+        }
+      },
+    );
 
     await PlaylistData.fetchPlaylists(client: result);
     return result;
