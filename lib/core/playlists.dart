@@ -1,8 +1,24 @@
 import "dart:convert";
 
+import "package:async_locks/async_locks.dart";
+
 import "client.dart";
 import "tracks.dart";
 
+final _playlistsUpdateEvent = Event();
+Stream<void> _playlistsStream() async* {
+  while (true) {
+    await _playlistsUpdateEvent.wait();
+    _playlistsUpdateEvent.clear();
+  }
+}
+
+Stream<void>? _playlistsStreamInstance;
+Stream<void> playlistsUpdateSignal() => _playlistsStreamInstance = _playlistsStreamInstance ?? _playlistsStream().asBroadcastStream();
+
+void updatePlaylists() => _playlistsUpdateEvent.set();
+
+/// Represents a playlist, which is a collection of [Track]s
 class PlaylistData {
   final int _id;
   String _name;

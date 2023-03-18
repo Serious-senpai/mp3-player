@@ -1,9 +1,10 @@
+import "dart:io";
+
 import "package:flutter/material.dart";
 import "package:fluttertoast/fluttertoast.dart";
 
 import "drawer.dart";
 import "../core/client.dart";
-import "../core/errors.dart";
 import "../core/playlists.dart";
 import "../core/tracks.dart";
 import "../core/utils.dart";
@@ -20,24 +21,32 @@ class YouTubePage extends StatefulWidget {
 class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouTubePage> {
   MP3Client get client => widget.client;
 
-  String queryString = "";
+  final searchController = TextEditingController();
+
+  Future<List<YouTubeTrack>>? searchFuture;
 
   void refresh() {
     if (mounted) setState(() {});
   }
 
-  Future<List<YouTubeTrack>> searchCurrentQuery() => client.ytClient.search(queryString);
-
   Widget constructPage(BuildContext context) {
     var children = <Widget>[
       TextField(
-        decoration: const InputDecoration(hintText: "Search YouTube video"),
+        controller: searchController,
+        decoration: InputDecoration(
+          hintText: "Search YouTube video",
+          suffixIcon: IconButton(
+            onPressed: () => searchController.clear(),
+            icon: const Icon(Icons.clear),
+          ),
+        ),
         keyboardType: TextInputType.text,
         showCursor: true,
         autofocus: false,
         onSubmitted: (text) {
-          queryString = text;
-          futureSingleton.reloadFuture(searchCurrentQuery);
+          if (text.isNotEmpty) {
+            searchFuture = client.ytClient?.search(text);
+          }
           refresh();
         },
       ),
@@ -45,10 +54,10 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
       seperator,
     ];
 
-    if (queryString.isNotEmpty) {
+    if (searchFuture != null) {
       children.add(
         FutureBuilder(
-          future: futureSingleton.getFuture(searchCurrentQuery),
+          future: searchFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               throw snapshot.error!;
@@ -113,7 +122,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                 );
 
               default:
-                throw LogicalFlowException(constructPage);
+                return const SizedBox.shrink();
             }
           },
         ),
@@ -136,9 +145,14 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
         actions: [
           TextButton(
             onPressed: () async {
-              await Fluttertoast.showToast(msg: "Optimizing YouTube client...");
-              await client.ytClient.sortInstances();
-              await Fluttertoast.showToast(msg: "YouTube client optimized!");
+              try {
+                await client.initializeYtClient();
+                await Fluttertoast.showToast(msg: "Optimizing YouTube client...");
+                await client.ytClient!.sortInstances();
+                await Fluttertoast.showToast(msg: "YouTube client optimized!");
+              } on SocketException {
+                // pass
+              }
             },
             child: const Icon(Icons.build_outlined),
           ),

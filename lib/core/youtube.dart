@@ -1,5 +1,6 @@
 import "dart:convert";
 import "dart:core";
+import "dart:io";
 
 import "package:async_locks/async_locks.dart";
 import "package:http/http.dart";
@@ -88,18 +89,22 @@ class YouTubeClient {
 
   /// Create a [YouTubeTrack] from [videoId]
   Future<YouTubeTrack?> fetch(String videoId) async {
-    for (var instance in instances) {
-      var response = await client.get(Uri.https(instance, "/api/v1/videos/$videoId"));
-      if (response.statusCode == 200) {
-        var data = Map<String, dynamic>.from(jsonDecode(utf8.decode(response.bodyBytes)));
-        var titleRow = await mp3Client.database.query("youtube", where: "id = ?", whereArgs: [videoId], limit: 1);
-        var title = titleRow[0]["title"];
-        if (title is String) {
+    try {
+      for (var instance in instances) {
+        var response = await client.get(Uri.https(instance, "/api/v1/videos/$videoId"));
+        if (response.statusCode == 200) {
+          var data = Map<String, dynamic>.from(jsonDecode(utf8.decode(response.bodyBytes)));
+          var title = await YouTubeTrack.queryTitle(mp3Client, videoId);
+          if (title.isEmpty) {
+            await mp3Client.database.insert("youtube", {"id": videoId, "title": data["title"]});
+            title = data["title"];
+          }
+
           return YouTubeTrack(videoId: videoId, title: title, author: data["artist"], client: mp3Client);
-        } else {
-          throw LogicalFlowException(fetch);
         }
       }
+    } on SocketException {
+      // pass
     }
 
     // Video may have been deleted/made private

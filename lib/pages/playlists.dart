@@ -416,85 +416,75 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
     );
   }
 
-  Widget playlistsDisplayBuilder(BuildContext context, AsyncSnapshot<List<PlaylistData>> snapshot) {
+  Widget playlistsDisplayBuilder(BuildContext context, AsyncSnapshot<void> snapshot) {
     if (snapshot.hasError) {
-      var error = snapshot.error!;
-      return Center(child: errorIndicator(content: "Error: $error"));
+      throw snapshot.error!;
     }
 
-    switch (snapshot.connectionState) {
-      case ConnectionState.waiting:
-        return Center(child: loadingIndicator(content: "Loading playlists"));
+    var playlists = List<PlaylistData>.from(client.allPlaylists);
+    playlists.sort((first, second) => first.name.compareTo(second.name));
 
-      case ConnectionState.done:
-        var playlists = snapshot.data!;
-        playlists.sort((first, second) => first.name.compareTo(second.name));
-
-        if (playlists.isEmpty) {
-          return Center(
-            child: RichText(
-              text: const TextSpan(
-                children: <InlineSpan>[
-                  TextSpan(text: "Click "),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: Icon(Icons.playlist_add),
-                  ),
-                  TextSpan(text: " to create a new playlist"),
-                ],
+    if (playlists.isEmpty) {
+      return Center(
+        child: RichText(
+          text: const TextSpan(
+            children: <InlineSpan>[
+              TextSpan(text: "Click "),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Icon(Icons.playlist_add),
               ),
-            ),
-          );
-        }
-
-        return Column(
-          children: [
-            Flexible(
-              child: ListView.builder(
-                itemCount: playlists.length,
-                itemBuilder: (context, playlistIndex) {
-                  var playlist = playlists[playlistIndex];
-                  return ExpansionTile(
-                    title: Text(
-                      "(${playlist.length}) ${playlist.name}",
-                      style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
-                    ),
-                    subtitle: Text(
-                      playlist.displayArtists,
-                      style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
-                    ),
-                    initiallyExpanded: _isSearching,
-                    children: List<Widget>.generate(
-                      playlist.tracks.length + 4,
-                      (index) {
-                        switch (index) {
-                          case 0:
-                            return addNewTrackButton(playlist);
-
-                          case 1:
-                            return editPlaylistNameButton(playlist);
-
-                          case 2:
-                            return clearPlaylistButton(playlist);
-
-                          case 3:
-                            return removePlaylistButton(playlist);
-
-                          default:
-                            return trackTile(playlists[playlistIndex], index - 4);
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-
-      default:
-        throw LogicalFlowException(playlistsDisplayBuilder);
+              TextSpan(text: " to create a new playlist"),
+            ],
+          ),
+        ),
+      );
     }
+
+    return Column(
+      children: [
+        Flexible(
+          child: ListView.builder(
+            itemCount: playlists.length,
+            itemBuilder: (context, playlistIndex) {
+              var playlist = playlists[playlistIndex];
+              return ExpansionTile(
+                title: Text(
+                  "(${playlist.length}) ${playlist.name}",
+                  style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
+                ),
+                subtitle: Text(
+                  playlist.displayArtists,
+                  style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
+                ),
+                initiallyExpanded: _isSearching,
+                children: List<Widget>.generate(
+                  playlist.tracks.length + 4,
+                  (index) {
+                    switch (index) {
+                      case 0:
+                        return addNewTrackButton(playlist);
+
+                      case 1:
+                        return editPlaylistNameButton(playlist);
+
+                      case 2:
+                        return clearPlaylistButton(playlist);
+
+                      case 3:
+                        return removePlaylistButton(playlist);
+
+                      default:
+                        return trackTile(playlists[playlistIndex], index - 4);
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -602,8 +592,8 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
               ],
             ),
       drawer: createPersistenDrawer(context: context, client: client),
-      body: FutureBuilder(
-        future: futureSingleton.getFuture(client.fetchPlaylists),
+      body: StreamBuilder(
+        stream: playlistsUpdateSignal(),
         builder: playlistsDisplayBuilder,
       ),
     );

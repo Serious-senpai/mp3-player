@@ -4,33 +4,6 @@ import "package:flutter/material.dart";
 import "package:fluttertoast/fluttertoast.dart";
 import "package:url_launcher/url_launcher.dart";
 
-import "errors.dart";
-
-typedef _AsyncFunction<T> = Future<T> Function();
-
-class _FutureSingleton {
-  final _cache = <_AsyncFunction<dynamic>, Future<dynamic>>{};
-
-  Future<T> getFuture<T>(_AsyncFunction<T> asyncFunction) {
-    if (_cache[asyncFunction] != null) {
-      var future = _cache[asyncFunction];
-      if (future is Future<T>) {
-        return future;
-      } else {
-        throw LogicalFlowException(getFuture<T>);
-      }
-    }
-
-    return reloadFuture(asyncFunction);
-  }
-
-  Future<T> reloadFuture<T>(_AsyncFunction<T> asyncFunction) => _cache[asyncFunction] = asyncFunction();
-}
-
-/// Object that manages a single instance of each future from
-/// asynchronous functions
-final futureSingleton = _FutureSingleton();
-
 /// Objects holding a pair of value
 class Pair<T1, T2> {
   T1 first;

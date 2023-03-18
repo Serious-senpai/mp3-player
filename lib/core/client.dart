@@ -1,5 +1,6 @@
 import "dart:async";
 import "dart:convert";
+import "dart:io";
 import "dart:math";
 
 import "package:assets_audio_player/assets_audio_player.dart";
@@ -15,6 +16,7 @@ import "tracks.dart";
 import "utils.dart";
 import "youtube.dart";
 
+/// Display the current procress of the audio player
 class PlayingInfo {
   /// The playing playlist
   PlaylistData? get playlist => state.value.first;
@@ -38,7 +40,10 @@ class PlayingInfo {
   bool _repeatOne = false;
   bool _shuffle = false;
 
+  /// Whether we are looping over a track
   bool get repeatOne => _repeatOne;
+
+  /// Whether we are playing tracks from a playlist in a random order
   bool get shuffle => _shuffle;
 
   /// The stream of [RealtimePlayingInfos] for stream builders to listen to
@@ -48,14 +53,19 @@ class PlayingInfo {
 
   int? _indexUpdate;
 
+  /// Initialize a new [PlayingInfo] instance
   PlayingInfo() {
     _completer.set();
   }
 
+  /// Update the current playing track
   void update(PlaylistData? playlist, int? index) {
     state.value = Pair<PlaylistData?, int?>(playlist, index);
   }
 
+  /// Stop a the playing track (if any) and play a new one.
+  ///
+  /// This method set [repeatOne] and [shuffle] back to false.
   Future<void> play({required PlaylistData playlist, required int index}) async {
     if (isPlaying) await stop();
 
@@ -104,30 +114,44 @@ class PlayingInfo {
     }
   }
 
+  /// Stop the internal player
   Future<void> stop() async {
     _stopRequest = true;
     await _player.stop();
     update(null, null);
   }
 
+  /// Skip to the previous track in the playlist
   Future<void> previous() async {
     _indexUpdate = -1;
     await _player.stop();
   }
 
+  /// Skip to the next track in the playlist
   Future<void> next() async {
     _indexUpdate = 1;
     await _player.stop();
   }
 
+  /// Pause the current playing track
   Future<void> pause() => _player.pause();
+
+  /// Resume the current playing track
   Future<void> resume() => _player.play();
+
+  /// Toggle between [pause] and [resume]
   Future<void> playOrPause() => _player.playOrPause();
+
+  /// Seek the current track to a specific position
   Future<void> seek(Duration value) => _player.seek(value);
 
+  /// Toggle [repeatOne]
   void toggleRepeat() => _repeatOne = !_repeatOne;
+
+  /// Toggle [shuffle]
   void toggleShuffle() => _shuffle = !_shuffle;
 
+  /// Update [index] by a specific change
   void updateIndex(int change) {
     if (isPlaying) {
       var length = playlist!.length, index = this.index! + change;
@@ -142,6 +166,7 @@ class PlayingInfo {
   }
 }
 
+/// This is the heart of the application that manages all operations of the backend
 class MP3Client {
   /// The local SQLite database
   final Database database;
@@ -155,10 +180,27 @@ class MP3Client {
   /// Information about the current track
   final playingInfo = PlayingInfo();
 
-  late final YouTubeClient ytClient;
+  /// Iterable of all current playlists
+  Iterable<PlaylistData> get allPlaylists => _playlistCache.values;
+
+  /// The [YouTubeClient] to access content from YouTube, will be null when Internet
+  /// is not available
+  YouTubeClient? ytClient;
 
   /// Construct a new [MP3Client]
   MP3Client(this.database);
+
+  /// Initialize the internal [YouTubeClient]
+  ///
+  /// May throw [SocketException] if Internet is not available
+  Future<void> initializeYtClient() async {
+    if (ytClient == null) {
+      ytClient = await YouTubeClient.create(this);
+      _playlistCache.clear();
+      _trackCache.clear();
+      updatePlaylists();
+    }
+  }
 
   /// Fetch a playlist (if exists) from the database with the given [id]
   Future<PlaylistData?> fetchPlaylist(int id) async {
@@ -185,6 +227,8 @@ class MP3Client {
       playlists.add(await playlistFromRow(result));
     }
 
+    updatePlaylists();
+
     return playlists;
   }
 
@@ -209,12 +253,16 @@ class MP3Client {
   ///
   /// The [fetchPlaylists] method is then reloaded in [futureSingleton]
   Future<void> removePlaylist(int id) async {
-    _playlistCache.remove(id);
+    var playlist = await fetchPlaylist(id);
+    if (playlist != null) {
+      await playlist.removePlaylist();
+      _playlistCache.remove(id);
 
-    futureSingleton.reloadFuture(fetchPlaylists);
+      updatePlaylists();
+    }
   }
 
-  /// Create a new playlist
+  /// Create a new playlist with [name]
   Future<PlaylistData> createPlaylist(String name) async {
     var id = await database.insert(
       "playlists",
@@ -225,26 +273,43 @@ class MP3Client {
       },
     );
 
-    futureSingleton.reloadFuture(fetchPlaylists);
+    updatePlaylists();
 
     var result = await fetchPlaylist(id);
     return result!;
   }
 
   /// Create a [Track] from its database URI
-  Future<Track?> createTrack(String uri) => Track.createTrack(client: this, uri: uri, cache: _trackCache);
+  Future<Track?> createTrack(String uri) => Track.createTrack(client: this, databaseUri: uri, cache: _trackCache);
 
+  /// See [PlayingInfo.play]
   Future<void> play({required PlaylistData playlist, required int index}) => playingInfo.play(playlist: playlist, index: index);
+
+  /// See [PlayingInfo.previous]
   Future<void> previous() => playingInfo.previous();
+
+  /// See [PlayingInfo.next]
   Future<void> next() => playingInfo.next();
+
+  /// See [PlayingInfo.resume]
   Future<void> resume() => playingInfo.resume();
+
+  /// See [PlayingInfo.pause]
   Future<void> pause() => playingInfo.pause();
+
+  /// See [PlayingInfo.stop]
   Future<void> stop() => playingInfo.stop();
+
+  /// See [PlayingInfo.seek]
   Future<void> seek(Duration value) => playingInfo.seek(value);
+
+  /// See [PlayingInfo.toggleRepeat]
   void toggleRepeat() => playingInfo.toggleRepeat();
+
+  /// See [PlayingInfo.toggleShuffle]
   void toggleShuffle() => playingInfo.toggleShuffle();
 
-  /// Create a [MP3Client] instance
+  /// Create a [MP3Client] instance and attempt to initialize [ytClient]
   static Future<MP3Client> create() async {
     var databaseDir = await getDatabasesPath();
     var database = await openDatabase(
@@ -259,7 +324,13 @@ class MP3Client {
     );
 
     var result = MP3Client(database);
-    result.ytClient = await YouTubeClient.create(result);
+    try {
+      await result.initializeYtClient();
+    } on SocketException {
+      // pass
+    }
+
+    await result.fetchPlaylists();
     return result;
   }
 }
