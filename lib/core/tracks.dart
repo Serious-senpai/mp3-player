@@ -323,15 +323,19 @@ class YouTubeTrack extends Track {
 
   @override
   Future<Audio> toAudio() async {
-    var audioUrl = await getAudioUrl();
-    return Audio.network(
-      audioUrl.toString(),
-      metas: Metas(
-        title: title,
-        artist: artist,
-        image: MetasImage.network(thumbnailUrl.toString()),
-      ),
-    );
+    try {
+      var audioUrl = await getAudioUrl();
+      return Audio.network(
+        audioUrl.toString(),
+        metas: Metas(
+          title: title,
+          artist: artist,
+          image: MetasImage.network(thumbnailUrl.toString()),
+        ),
+      );
+    } on SocketException {
+      return Audio("assets/silence.mp3");
+    }
   }
 
   /// Fetch the audio URL for this track
