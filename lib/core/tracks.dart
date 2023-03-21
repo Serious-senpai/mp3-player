@@ -295,7 +295,7 @@ class YouTubeTrack extends Track {
   Uri get url => Uri.https("youtube.com", "/watch", {"v": videoId});
 
   /// The track's thumbnail URL
-  Uri get thumbnailUrl => Uri.https("img.youtube.com", "/vi/$videoId/0.jpg");
+  Uri get thumbnailUrl => Uri.https("img.youtube.com", "/vi/$videoId/mqdefault.jpg");
 
   @override
   Widget displayThumbnail({double? size}) => Image.network(
