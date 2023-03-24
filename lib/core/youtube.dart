@@ -4,6 +4,7 @@ import "dart:io";
 
 import "package:async_locks/async_locks.dart";
 import "package:http/http.dart";
+import "package:sqflite/sqflite.dart";
 
 import "client.dart";
 import "errors.dart";
@@ -88,19 +89,15 @@ class YouTubeClient {
   }
 
   /// Create a [YouTubeTrack] from [videoId]
-  Future<YouTubeTrack?> fetch(String videoId) async {
+  Future<YouTubeTrack?> fetch({required String videoId}) async {
     try {
       for (var instance in instances) {
         var response = await client.get(Uri.https(instance, "/api/v1/videos/$videoId"));
         if (response.statusCode == 200) {
           var data = Map<String, dynamic>.from(jsonDecode(utf8.decode(response.bodyBytes)));
-          var title = await YouTubeTrack.queryTitle(mp3Client, videoId);
-          if (title.isEmpty) {
-            await mp3Client.database.insert("youtube", {"id": videoId, "title": data["title"]});
-            title = data["title"];
-          }
-
-          return YouTubeTrack(videoId: videoId, title: title, author: data["artist"], client: mp3Client);
+          var title = data["title"], author = data["artist"];
+          await mp3Client.database.insert("youtube", {"id": videoId, "title": title, "author": author}, conflictAlgorithm: ConflictAlgorithm.ignore);
+          return YouTubeTrack(videoId: videoId, title: title, author: author, client: mp3Client);
         }
       }
     } on SocketException {

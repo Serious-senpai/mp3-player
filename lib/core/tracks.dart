@@ -2,10 +2,12 @@ import "dart:convert";
 import "dart:io";
 
 import "package:assets_audio_player/assets_audio_player.dart";
+import "package:async_locks/async_locks.dart";
 import "package:flutter/material.dart";
 import "package:path/path.dart";
 import "package:path_provider/path_provider.dart";
 import "package:permission_handler/permission_handler.dart";
+import "package:sqflite/sqflite.dart";
 
 import "client.dart";
 import "errors.dart";
@@ -49,79 +51,55 @@ abstract class Track {
   }) : _state = client;
 
   /// A [Widget] that displays the thumbnail of the track
-  Widget displayThumbnail({double? size});
+  Widget displayThumbnail({double? size, BoxFit? fit}) => Image.asset(
+        "assets/logo.jpg",
+        width: size,
+        height: size,
+        fit: fit,
+      );
 
   /// Edit the title of the track
   Future<bool> editTitle({required String newTitle});
 
   /// Convert this track to a playable [Audio]
-  Future<Audio> toAudio();
+  Future<Audio> toAudio() async => Audio("assets/silence.mp3");
+
+  static final _createTrackLock = Lock();
 
   /// Create a new [Track] of a suitable type
   static Future<Track?> createTrack({
     required MP3Client client,
     required String databaseUri,
-  }) async {
-    if (_trackCache[databaseUri] != null) {
-      return _trackCache[databaseUri];
-    }
+    bool allowHTTPRequest = true,
+  }) =>
+      _createTrackLock.run(
+        () async {
+          var cached = _trackCache[databaseUri];
+          if (cached != null) return cached;
 
-    var realUri = _localTrackMatcher.stringMatch(databaseUri);
-    if (realUri != null) {
-      var track = await LocalTrack.fromPath(client: client, realUri: realUri);
-      if (track != null) _trackCache[databaseUri] = track;
-      return track;
-    }
+          var realUri = _localTrackMatcher.stringMatch(databaseUri);
+          if (realUri != null) {
+            var track = await LocalTrack.fromPath(client: client, realUri: realUri);
+            if (track != null) _trackCache[databaseUri] = track;
+            return track;
+          }
 
-    realUri = _youtubeTrackMatcher.stringMatch(databaseUri);
-    if (realUri != null) {
-      Track track = DummyTrack(databaseUri: databaseUri, title: await YouTubeTrack.queryTitle(client, realUri), client: client);
-      try {
-        track = await client.ytClient?.fetch(realUri) ?? track;
-      } on SocketException {
-        // pass
-      }
+          realUri = _youtubeTrackMatcher.stringMatch(databaseUri);
+          if (realUri != null) {
+            var track = await YouTubeTrack.fromId(
+              client: client,
+              videoId: realUri,
+              allowHTTPRequest: allowHTTPRequest,
+            );
 
-      return _trackCache[databaseUri] = track;
-    }
+            if (track != null) _trackCache[databaseUri] = track;
 
-    throw LogicalFlowException(createTrack);
-  }
-}
+            return track;
+          }
 
-/// Represents a [Track] with metadata but unplayable
-class DummyTrack extends Track {
-  @override
-  String get databaseUri => uri;
-
-  /// Constructs a new [DummyTrack]
-  DummyTrack({
-    required String databaseUri,
-    required String title,
-    String? artist,
-    String? album,
-    required MP3Client client,
-  }) : super(
-          uri: databaseUri,
-          title: title,
-          artist: artist,
-          album: album,
-          client: client,
-        );
-
-  @override
-  Widget displayThumbnail({double? size}) => Image.asset(
-        "assets/logo.jpg",
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
+          throw LogicalFlowException(createTrack);
+        },
       );
-
-  @override
-  Future<bool> editTitle({required String newTitle}) async => false;
-
-  @override
-  Future<Audio> toAudio() async => Audio("assets/silence.mp3");
 }
 
 /// Represents a [Track] from a local file in the filesystem
@@ -147,22 +125,17 @@ class LocalTrack extends Track {
         );
 
   @override
-  Widget displayThumbnail({double? size}) {
+  Widget displayThumbnail({double? size, BoxFit? fit}) {
     _thumbnailPathFuture = _thumbnailPathFuture ?? saveThumbnailImage();
     return FutureBuilder(
       future: _thumbnailPathFuture,
       builder: (context, snapshot) => snapshot.data == null
-          ? Image.asset(
-              "assets/logo.jpg",
-              width: size,
-              height: size,
-              fit: BoxFit.contain,
-            )
+          ? super.displayThumbnail(size: size, fit: fit)
           : Image.file(
               File(snapshot.data!),
               width: size,
               height: size,
-              fit: BoxFit.contain,
+              fit: fit,
             ),
     );
   }
@@ -254,20 +227,6 @@ class YouTubeTrack extends Track {
   static final _analyzer = Uri.https("www.y2mate.com", "/mates/analyzeV2/ajax");
   static final _converter = Uri.https("www.y2mate.com", "/mates/convertV2/index");
 
-  /// Query the title of a YouTube track from the local database
-  ///
-  /// If the track is not found, an empty string is returned
-  static Future<String> queryTitle(MP3Client client, String videoId) async {
-    var titleRow = await client.database.query("youtube", where: "id = ?", whereArgs: [videoId], limit: 1);
-    var title = titleRow.isEmpty ? "" : titleRow[0]["title"];
-
-    if (title is String) {
-      return title;
-    } else {
-      throw LogicalFlowException(queryTitle);
-    }
-  }
-
   @override
   String get databaseUri => "[!YOUTUBE]$uri";
 
@@ -298,11 +257,11 @@ class YouTubeTrack extends Track {
   Uri get thumbnailUrl => Uri.https("img.youtube.com", "/vi/$videoId/mqdefault.jpg");
 
   @override
-  Widget displayThumbnail({double? size}) => Image.network(
+  Widget displayThumbnail({double? size, BoxFit? fit}) => Image.network(
         thumbnailUrl.toString(),
         width: size,
         height: size,
-        fit: BoxFit.cover,
+        fit: fit,
       );
 
   @override
@@ -318,6 +277,7 @@ class YouTubeTrack extends Track {
       title = newTitle;
       return true;
     }
+
     return false;
   }
 
@@ -334,7 +294,7 @@ class YouTubeTrack extends Track {
         ),
       );
     } on SocketException {
-      return Audio("assets/silence.mp3");
+      return super.toAudio();
     }
   }
 
@@ -366,6 +326,35 @@ class YouTubeTrack extends Track {
 
     data = Map<String, String>.from(jsonDecode(utf8.decode(response.bodyBytes)));
     return Uri.parse(data["dlink"]);
+  }
+
+  /// Insert the metadata of this track to the database
+  Future<void> save() => _state.database.insert(
+        "youtube",
+        {"id": videoId, "title": title, "author": artist},
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+
+  /// Create a [YouTubeTrack] from a [videoId]
+  static Future<YouTubeTrack?> fromId({
+    required MP3Client client,
+    required String videoId,
+    bool allowHTTPRequest = true,
+  }) async {
+    var results = await client.database.query(
+      "youtube",
+      distinct: true,
+      where: "id = ?",
+      whereArgs: [videoId],
+    );
+
+    if (results.isNotEmpty) {
+      assert(results.length == 1);
+      var row = Map<String, String>.from(results[0]);
+      return YouTubeTrack(videoId: videoId, title: row["title"]!, author: row["author"]!, client: client);
+    }
+
+    return allowHTTPRequest ? client.ytClient?.fetch(videoId: videoId) : null;
   }
 
   @override

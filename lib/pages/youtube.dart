@@ -121,8 +121,9 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                             );
 
                             if (target == null) return;
+                            await item.save();
                             await target.add(item);
-                            await Fluttertoast.showToast(msg: "Added track to \"${target.name}\"");
+                            await Fluttertoast.showToast(msg: "Added a track to \"${target.name}\"");
                             refresh();
                           },
                           child: const Icon(Icons.playlist_add_outlined),

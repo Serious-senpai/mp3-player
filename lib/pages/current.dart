@@ -35,7 +35,7 @@ class _CurrentPageState extends State<CurrentPage> with PageStateWithDrawer<Curr
         var screenSize = MediaQuery.of(context).size;
         return Column(
           children: [
-            track.displayThumbnail(size: screenSize.shortestSide / 3),
+            track.displayThumbnail(size: screenSize.width, fit: BoxFit.contain),
             seperator,
             Center(child: Text(track.title, style: const TextStyle(fontSize: 22))),
             seperator,

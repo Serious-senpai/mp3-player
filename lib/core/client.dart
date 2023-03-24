@@ -183,7 +183,7 @@ class MP3Client {
 
   Future<List<PlaylistData>>? _fetchPlaylistsFuture;
 
-  /// A [Future] of [fetchPlaylists] for a future builder to listen to
+  /// A [Future] of [PlaylistData.fetchPlaylists] for a future builder to listen to
   Future<List<PlaylistData>> get fetchPlaylistsFuture => _fetchPlaylistsFuture = _fetchPlaylistsFuture ?? PlaylistData.fetchPlaylists(client: this);
 
   /// Construct a new [MP3Client]
@@ -195,8 +195,6 @@ class MP3Client {
   Future<void> initializeYtClient() async {
     if (ytClient == null) {
       ytClient = await YouTubeClient.create(this);
-      PlaylistData.clearCache();
-      Track.clearCache();
       updateFetchPlaylistsFuture();
     }
   }
@@ -241,15 +239,14 @@ class MP3Client {
       onOpen: (database) async {
         var batch = database.batch();
         batch.execute("CREATE TABLE IF NOT EXISTS playlists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, items TEXT NOT NULL, created_at TEXT NOT NULL);");
-        batch.execute("CREATE TABLE IF NOT EXISTS youtube (id TEXT PRIMARY KEY, title TEXT NOT NULL);");
+        batch.execute("CREATE TABLE IF NOT EXISTS youtube (id TEXT PRIMARY KEY, title TEXT NOT NULL, author TEXT NOT NULL);");
 
         await batch.commit(noResult: true);
       },
     );
 
     var result = MP3Client(database);
-    var future = result.initializeYtClient();
-    future.then(
+    result.initializeYtClient().then(
       (value) => null,
       onError: (error, stackTrace) {
         if (error is! SocketException) {
@@ -258,7 +255,6 @@ class MP3Client {
       },
     );
 
-    await PlaylistData.fetchPlaylists(client: result);
     return result;
   }
 }

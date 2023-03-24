@@ -49,6 +49,14 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
     if (mounted) setState(() {});
   }
 
+  bool displayTrack(Track track) {
+    if (!_isSearching) return true;
+    if (track.title.toLowerCase().contains(_searchingString.value!.toLowerCase())) return true;
+    if (track.artist != null && track.artist!.toLowerCase().contains(_searchingString.value!.toLowerCase())) return true;
+
+    return false;
+  }
+
   ListTile addNewTrackButton(PlaylistData playlist) => ListTile(
         leading: const Icon(Icons.add_outlined),
         title: const Text("Add a new track(s)"),
@@ -255,7 +263,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
 
   Widget trackTile(PlaylistData playlist, int index) {
     var track = playlist.tracks[index];
-    if (_isSearching && !track.title.toLowerCase().contains(_searchingString.value!.toLowerCase())) {
+    if (!displayTrack(track)) {
       return const SizedBox.shrink();
     }
 
@@ -292,7 +300,7 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
 
     var textStyle = isPlayingTrack ? const TextStyle(color: Colors.green) : null;
     return ListTile(
-      leading: track.displayThumbnail(),
+      leading: track.displayThumbnail(fit: BoxFit.contain),
       title: Text(track.title, style: textStyle),
       subtitle: track.artist == null ? null : Text(track.artist!, style: textStyle),
       trailing: trailing,
