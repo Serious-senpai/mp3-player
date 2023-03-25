@@ -133,6 +133,7 @@ class LocalTrack extends Track {
           ? super.displayThumbnail(size: size, fit: fit)
           : Image.file(
               File(snapshot.data!),
+              errorBuilder: (context, error, stackTrace) => super.displayThumbnail(size: size, fit: fit),
               width: size,
               height: size,
               fit: fit,
@@ -259,6 +260,7 @@ class YouTubeTrack extends Track {
   @override
   Widget displayThumbnail({double? size, BoxFit? fit}) => Image.network(
         thumbnailUrl.toString(),
+        errorBuilder: (context, error, stackTrace) => super.displayThumbnail(size: size, fit: fit),
         width: size,
         height: size,
         fit: fit,
