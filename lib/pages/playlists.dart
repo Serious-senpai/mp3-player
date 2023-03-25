@@ -300,8 +300,8 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
 
     var textStyle = isPlayingTrack ? const TextStyle(color: Colors.green) : null;
     return ListTile(
-      leading: track.displayThumbnail(fit: BoxFit.contain),
-      title: Text(track.title, style: textStyle),
+      leading: AspectRatio(aspectRatio: 1.0, child: track.displayThumbnail(fit: BoxFit.cover)),
+      title: Text(track.title, style: textStyle, overflow: TextOverflow.ellipsis),
       subtitle: track.artist == null ? null : Text(track.artist!, style: textStyle),
       trailing: trailing,
       onTap: () async {

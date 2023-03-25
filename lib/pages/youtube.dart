@@ -87,7 +87,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                       var item = results[index];
                       return ListTile(
                         leading: Image.network(item.thumbnailUrl.toString(), fit: BoxFit.cover),
-                        title: Text(item.title),
+                        title: Text(item.title, overflow: TextOverflow.ellipsis),
                         subtitle: Text(item.artist!), // We always know a YouTube video's author (i.e. channel)
                         trailing: TextButton(
                           onPressed: () async {

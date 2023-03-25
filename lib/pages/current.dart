@@ -35,13 +35,17 @@ class _CurrentPageState extends State<CurrentPage> with PageStateWithDrawer<Curr
         var screenSize = MediaQuery.of(context).size;
         return Column(
           children: [
-            track.displayThumbnail(size: screenSize.width, fit: BoxFit.contain),
+            SizedBox(
+              width: screenSize.width,
+              height: screenSize.height / 3,
+              child: track.displayThumbnail(fit: BoxFit.contain),
+            ),
             seperator,
             Center(child: Text(track.title, style: const TextStyle(fontSize: 22))),
             seperator,
-            Align(alignment: Alignment.centerRight, child: Text(track.artist ?? "Unknown artist", style: const TextStyle(fontSize: 18, fontStyle: FontStyle.italic))),
+            Align(alignment: Alignment.centerRight, child: Text(track.artist ?? "Unknown artist", style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic))),
             seperator,
-            Align(alignment: Alignment.centerRight, child: Text(track.album ?? "Unknown album", style: const TextStyle(fontSize: 18, fontStyle: FontStyle.italic))),
+            Align(alignment: Alignment.centerRight, child: Text(track.album ?? "Unknown album", style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic))),
             seperator,
             ProgressBar(
               progress: data.currentPosition,
