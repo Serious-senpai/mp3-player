@@ -33,17 +33,17 @@ dependencies:
 
   assets_audio_player: 3.0.6
   async_locks: 3.3.1
-  audio_video_progress_bar: 1.0.0
+  audio_video_progress_bar: 1.0.1
   audiotagger: 2.2.1
   external_path: 1.0.3
   filesystem_picker: 3.1.0
-  fluttertoast: 8.1.2
+  fluttertoast: 8.2.1
   http: 0.13.5
   path: 1.8.2
   path_provider: 2.0.12
   permission_handler: 10.2.0
   rxdart: 0.27.7
-  sqflite: 2.2.4+1
+  sqflite: 2.2.6
   url_launcher: 6.1.8
 
   # The following adds the Cupertino Icons font to your application.
