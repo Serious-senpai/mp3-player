@@ -1,0 +1,47 @@
+name: Flutter build Test
+
+on: push
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    name: Build test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup Java
+      uses: actions/setup-java@v2
+      with:
+        distribution: microsoft
+        java-version: 11
+
+    - name: View Java status
+      run: java --version
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.7.0
+
+    - name: View Flutter status
+      run: |
+        flutter --version
+        flutter doctor -v
+
+    - name: Initialize project
+      run: flutter create --platforms android --project-name mp3_player .
+
+    - name: Test APK build
+      run: flutter build apk -v
+
+    - name: Upload build
+      uses: actions/upload-artifact@v3
+      with:
+        name: mp3-player-build
+        path: build/
