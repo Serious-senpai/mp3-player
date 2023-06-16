@@ -167,7 +167,7 @@ class ApplicationState {
   static ApplicationState? _instance;
   static final _instanceLock = Lock();
 
-  /// Get the singleton instance of [ApplicationState], create one of neccessary
+  /// Get the singleton instance of [ApplicationState], create one if neccessary
   static Future<ApplicationState> create() => _instanceLock.run(
         () async {
           Future<ApplicationState> createState() async {
