@@ -7,9 +7,12 @@ import "drawer.dart";
 import "../src/state.dart";
 import "../src/utils.dart";
 
+/// A [StatefulWidget] displaying the current state of the native media player
 class PlayPage extends StatefulWidget {
+  /// The global [ApplicationState]
   final ApplicationState state;
 
+  /// Construct a new [PlayPage]
   const PlayPage({required this.state, super.key});
 
   @override

@@ -4,15 +4,19 @@ import "pages/play.dart";
 import "pages/playlists.dart";
 import "src/state.dart";
 
+/// Application entry point
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   var state = await ApplicationState.create();
   runApp(MP3Player(state: state));
 }
 
+/// The main [StatelessWidget] of the application
 class MP3Player extends StatelessWidget {
+  /// The global [ApplicationState]
   final ApplicationState state;
 
+  /// Construct a new [MP3Player]
   const MP3Player({required this.state, super.key});
 
   @override

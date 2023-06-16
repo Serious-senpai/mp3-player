@@ -12,9 +12,12 @@ import "../src/state.dart";
 import "../src/tracks.dart";
 import "../src/utils.dart";
 
+/// The initial route of the application that displays all created [Playlist]s
 class PlaylistsPage extends StatefulWidget {
+  /// The global [ApplicationState]
   final ApplicationState state;
 
+  /// Construct a new [PlaylistsPage]
   const PlaylistsPage({required this.state, super.key});
 
   @override

@@ -5,11 +5,15 @@ import "package:async_locks/async_locks.dart";
 import "state.dart";
 import "tracks.dart";
 
+/// Represents a playlist, which contains a list of playable [Track]s
 class Playlist {
+  /// Mapping of IDs to their corresponding [Playlist]s
   static final playlists = <int, Playlist>{};
   static final _playlistsLock = Lock();
   static final _streamEvent = Event();
   static Stream<List<Playlist>>? _playlistsStream;
+
+  /// A [Stream] that broadcast data about the state of all [Playlist]s
   static Stream<List<Playlist>> get playlistsStream => _playlistsStream ??= _playlistsStreamImpl().asBroadcastStream();
 
   static Stream<List<Playlist>> _playlistsStreamImpl() async* {
@@ -20,19 +24,32 @@ class Playlist {
     }
   }
 
+  /// The playlist unique ID
   final int id;
 
   String _title;
+
+  /// The playlist title
   String get title => _title;
 
+  /// List of [Track]s in this playlist
   final List<Track> items;
+
+  /// The [DateTime] when this playlist was created
   final DateTime createdAt;
 
   final ApplicationState _state;
 
+  /// Whether one of the [Track]s in this playlist is currently being played by the application
   bool get isPlaying => _state.currentPlaylist == this;
+
+  /// The index of the [Track] that is currently being played, will be `null` if [isPlaying] is `false`
   int? get playingIndex => isPlaying ? _state.index : null;
 
+  /// The artwork (thumbnail) of this playlist
+  ///
+  /// This is the artwork of the first [Track] in [items] that has one. If no [Track] owns an artwork,
+  /// `null` is returned
   String? get thumbnailPath {
     for (var item in items) {
       var path = item.trackInfo.thumbnailPath;
@@ -42,6 +59,7 @@ class Playlist {
     return null;
   }
 
+  /// Returns a [String] displaying the artists of the [Track]s in [items]
   String get displayArtist {
     var artists = <String>[];
     for (var item in items) {
@@ -67,8 +85,10 @@ class Playlist {
     playlists[id] = this;
   }
 
+  /// Add a [Track] to this playlist
   Future<void> add(Track track) => addAll([track]);
 
+  /// Add a number of [Track]s to this playlist
   Future<void> addAll(Iterable<Track> tracks) async {
     items.addAll(tracks);
     await push();
@@ -78,11 +98,13 @@ class Playlist {
     }
   }
 
+  /// Rename this playlist (i.e. change its [title])
   Future<void> rename(String newTitle) async {
     _title = newTitle;
     await push();
   }
 
+  /// Remove a [Track] from this playlist
   Future<void> remove(int index) async {
     items.removeAt(index);
 
@@ -93,6 +115,7 @@ class Playlist {
     await push();
   }
 
+  /// Sync this playlist data to the local database
   Future<void> push() async {
     await _state.database.update(
       "playlists",
@@ -109,6 +132,7 @@ class Playlist {
     _streamEvent.set();
   }
 
+  /// Construct a [Playlist] from a database row
   static Future<Playlist> fromRow(Map<String, dynamic> row, {required ApplicationState state}) async {
     var result = await _playlistsLock.run(
       () async {
@@ -132,6 +156,9 @@ class Playlist {
     return result;
   }
 
+  /// Construct a [Playlist] from its ID
+  ///
+  /// Throws [StateError] if no such [Playlist] is found
   static Future<Playlist> fromId(int id, {required ApplicationState state}) async {
     var cached = playlists[id];
     if (cached != null) return cached;
@@ -140,6 +167,7 @@ class Playlist {
     return await fromRow(rows.single, state: state);
   }
 
+  /// Create a new [Playlist] and return it
   static Future<Playlist> create(String title, {required ApplicationState state}) async {
     var id = await state.database.insert(
       "playlists",
@@ -153,6 +181,7 @@ class Playlist {
     return await fromId(id, state: state);
   }
 
+  /// Fetch all [Playlist]s in the database
   static Future<List<Playlist>> fetchAll({required ApplicationState state}) async {
     var rows = await state.database.query("playlists");
     var results = <Playlist>[];
@@ -164,6 +193,9 @@ class Playlist {
     return results;
   }
 
+  /// Compare this object to another [Playlist]
+  ///
+  /// Two [Playlist]s are considered equal if they have the same [id]
   @override
   bool operator ==(covariant Playlist other) {
     return id == other.id;

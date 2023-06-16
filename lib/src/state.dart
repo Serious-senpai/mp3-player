@@ -6,6 +6,7 @@ import "package:sqflite/sqflite.dart";
 import "playlists.dart";
 import "tracks.dart";
 
+/// The global, singleton [ApplicationState]
 class ApplicationState {
   static const String UPDATE_STATE_METHOD = "com.haruka.mp3_player.UPDATE_STATE";
   static const String ON_COMPLETION_METHOD = "com.haruka.mp3_player.ON_COMPLETION";
@@ -21,11 +22,16 @@ class ApplicationState {
   static const String PLAYLIST_ID_KEY = "PLAYLIST_ID";
   static const String REPEAT_KEY = "REPEAT";
 
+  /// The application SQLite [Database]
   final Database database;
   final MethodChannel _platform;
 
   Playlist? _currentPlaylist;
+
+  /// The current playing [Playlist], or `null` if not playing
   Playlist? get currentPlaylist => _currentPlaylist;
+
+  /// The current playing [Track], or `null` if not playing
   Track? get currentTrack {
     var playlist = _currentPlaylist;
     if (playlist == null || _index < 0) return null;
@@ -33,11 +39,29 @@ class ApplicationState {
   }
 
   int _index = -1;
+
+  /// The current index of the playing [Track] (a.k.a. [currentTrack]) in its [Playlist] (a.k.a. [currentPlaylist])
   int get index => _index;
 
+  /// Whether the application is currently playing any [Track]
   bool isPlaying = false;
+
+  /// Whether the repeat mode is currently on.
+  ///
+  /// This should be the same as `MediaPlayer.isLooping()` on the native side.
+  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#isLooping()
   bool repeat = false;
+
+  /// The current position (in milliseconds) of [currentTrack]. This value shouldn't be rely on when no track is playing.
+  ///
+  /// This should be the same as `MediaPlayer.getCurrentPosition()` on the native side.
+  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#getCurrentPosition()
   int currentPosition = 0;
+
+  /// The duration (a.k.a length) in milliseconds of [currentTrack]. This value shouldn't be rely on when no track is playing.
+  ///
+  /// This should be the same as `MediaPlayer.getDuration()` on the native side.
+  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#getDuration()
   int duration = 0;
   final _streamStateEvent = Event();
 
@@ -77,6 +101,8 @@ class ApplicationState {
   }
 
   Stream<ApplicationState>? _streamState;
+
+  /// A [Stream] that broadcasts this [ApplicationState]
   Stream<ApplicationState> get streamState => _streamState ??= _streamStateImpl().asBroadcastStream();
   Stream<ApplicationState> _streamStateImpl() async* {
     while (true) {
@@ -86,6 +112,7 @@ class ApplicationState {
     }
   }
 
+  /// Send data to the native side and request that a track should be played
   Future<void> play({required Playlist playlist, required int index}) async {
     await _platform.invokeMapMethod(
       "play",
@@ -98,20 +125,34 @@ class ApplicationState {
     _currentPlaylist = playlist;
   }
 
+  /// Request a pause from the native side
   Future<void> pause() => _platform.invokeMapMethod("pause");
+
+  /// Request a resume from the native side
   Future<void> resume() => _platform.invokeMapMethod("resume");
+
+  /// Request to the native side that the MediaPlayer should seek to the specified [duration]
   Future<void> seek(Duration duration) => _platform.invokeMapMethod("seek", {"duration": duration.inMilliseconds});
+
+  /// Request to the native side to skip to the next track in the [Playlist]
   Future<void> next() => _platform.invokeMapMethod("next");
+
+  /// Request to the native side to skip to the previous track in the [Playlist]
   Future<void> previous() => _platform.invokeMapMethod("previous");
 
+  /// Request to the native side to stop the MediaPlayer
   Future<void> stop() async {
     await _platform.invokeMapMethod("stop");
     _currentPlaylist = null;
     _index = -1;
   }
 
+  /// Toggle the looping mode of the native MediaPlayer
+  ///
+  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#setLooping(boolean)
   Future<void> toggleRepeat() => _platform.invokeMapMethod("toggleRepeat");
 
+  /// Update the native player's metadata
   Future<void> update({Playlist? playlist, int? index}) async {
     var data = <String, dynamic>{};
     if (playlist != null) {
@@ -125,6 +166,8 @@ class ApplicationState {
 
   static ApplicationState? _instance;
   static final _instanceLock = Lock();
+
+  /// Get the singleton instance of [ApplicationState], create one of neccessary
   static Future<ApplicationState> create() => _instanceLock.run(
         () async {
           Future<ApplicationState> createState() async {
