@@ -1,583 +1,218 @@
 import "dart:io";
 
 import "package:async_locks/async_locks.dart";
-import "package:external_path/external_path.dart";
 import "package:filesystem_picker/filesystem_picker.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
-import "package:fluttertoast/fluttertoast.dart";
 import "package:permission_handler/permission_handler.dart";
 
 import "drawer.dart";
-import "../core/client.dart";
-import "../core/errors.dart";
-import "../core/playlists.dart";
-import "../core/tracks.dart";
-import "../core/utils.dart";
+import "../src/playlists.dart";
+import "../src/state.dart";
+import "../src/tracks.dart";
+import "../src/utils.dart";
 
-const _defaultPlaylistColor = Colors.white;
+class PlaylistsPage extends StatefulWidget {
+  final ApplicationState state;
 
-enum TrackOption {
-  delete,
-  editTitle,
-  addToPlaylist,
-}
-
-class PlaylistPage extends StatefulWidget {
-  final MP3Client client;
-
-  const PlaylistPage({required this.client, Key? key}) : super(key: key);
+  const PlaylistsPage({required this.state, super.key});
 
   @override
-  State<PlaylistPage> createState() => _PlaylistPageState();
+  State<PlaylistsPage> createState() => _PlaylistsPageState();
 }
 
-class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<PlaylistPage> {
-  MP3Client get client => widget.client;
-
-  final _searchingString = ValueNotifier<String?>(null);
-  bool get _isSearching => _searchingString.value is String;
-  set _isSearching(bool value) {
-    if (value) {
-      _searchingString.value ??= "";
-    } else {
-      _searchingString.value = null;
-    }
-  }
+class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<PlaylistsPage> {
+  ApplicationState get state => widget.state;
 
   void refresh() {
     if (mounted) setState(() {});
   }
 
-  bool displayTrack(Track track) {
-    if (!_isSearching) return true;
-    if (track.title.toLowerCase().contains(_searchingString.value!.toLowerCase())) return true;
-    if (track.artist != null && track.artist!.toLowerCase().contains(_searchingString.value!.toLowerCase())) return true;
-
-    return false;
-  }
-
-  ListTile addNewTrackButton(PlaylistData playlist) => ListTile(
-        leading: const Icon(Icons.add_outlined),
-        title: const Text("Add a new track(s)"),
-        onTap: () async {
-          var directories = await ExternalPath.getExternalStorageDirectories();
-
-          if (!mounted) return;
-
-          var target = await showDialog<Directory>(
-            context: context,
-            builder: (context) => AlertDialog(
-              icon: const Icon(Icons.add_outlined),
-              title: const Text("Add a new track(s)"),
-              content: DropdownButtonFormField<Directory>(
-                items: List<DropdownMenuItem<Directory>>.generate(
-                  directories.length,
-                  (index) => DropdownMenuItem<Directory>(
-                    value: Directory(directories[index]),
-                    child: Text(directories[index]),
-                  ),
-                ),
-                hint: const Text("Choose a location"),
-                onChanged: (value) => Navigator.pop(context, value),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
-              ],
-            ),
-          );
-
-          if (target == null || !mounted) return;
-
-          var pickedPath = await FilesystemPicker.open(
-            context: context,
-            rootDirectory: target,
-            title: "Choose a folder or an audio file",
-            requestPermission: () async {
-              var status = await Permission.storage.request();
-              return status.isGranted;
-            },
-            itemFilter: (entity, path, name) => entity is Directory || (entity is File && name.endsWith(".mp3")),
-          );
-
-          if (pickedPath == null) return;
-
-          switch (await FileSystemEntity.type(pickedPath)) {
-            case (FileSystemEntityType.directory):
-              var directory = Directory(pickedPath);
-              var tracks = <Track>[];
-
-              await Fluttertoast.showToast(msg: "Importing files...");
-
-              Future<void> addEntity(FileSystemEntity entity) async {
-                if (entity is File) {
-                  var track = await LocalTrack.fromPath(client: client, realUri: entity.path);
-                  if (track != null) tracks.add(track);
-                }
-              }
-
-              var futures = <Future>[];
-              var completer = Event();
-              directory.list(recursive: true, followLinks: false).listen(
-                    (entity) => futures.add(addEntity(entity)),
-                    onDone: completer.set,
-                  );
-
-              await completer.wait();
-              await Future.wait(futures);
-
-              await playlist.addAll(tracks);
-              await Fluttertoast.showToast(msg: "Added ${tracks.length} track(s) to playlist");
-              break;
-
-            case (FileSystemEntityType.file):
-              var track = await LocalTrack.fromPath(client: client, realUri: pickedPath);
-              if (track == null) return;
-
-              await playlist.add(track);
-              await Fluttertoast.showToast(msg: "Added a track to playlist");
-              break;
-
-            default:
-              throw LogicalFlowException(addNewTrackButton);
-          }
-
-          refresh();
-        },
-      );
-
-  ListTile editPlaylistNameButton(PlaylistData playlist) => ListTile(
-        leading: const Icon(Icons.edit_note_outlined),
-        title: const Text("Rename playlist"),
-        onTap: () async {
-          var controller = TextEditingController(text: playlist.name);
-          var name = await showDialog<String>(
-            context: context,
-            builder: (context) => AlertDialog(
-              icon: const Icon(Icons.playlist_add),
-              title: const Text("Rename playlist"),
-              content: TextField(
-                controller: controller,
-                decoration: const InputDecoration.collapsed(hintText: "Playlist name"),
-                keyboardType: TextInputType.text,
-                showCursor: true,
-                enableSuggestions: false,
-                maxLength: 50,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.pop(context, controller.text),
-                  child: const Text("OK"),
-                ),
-              ],
-            ),
-          );
-
-          if (name == null) return;
-
-          if (name.isNotEmpty) {
-            await playlist.rename(name);
-            await Fluttertoast.showToast(msg: "Renamed playlist");
-            refresh();
-          } else {
-            await Fluttertoast.showToast(msg: "Playlist name cannot be empty!");
-          }
-        },
-      );
-
-  ListTile clearPlaylistButton(PlaylistData playlist) => ListTile(
-        leading: const Icon(Icons.delete),
-        title: const Text("Clear playlist"),
-        onTap: () async {
-          if (playlist.playing) {
-            await Fluttertoast.showToast(msg: "Cannot remove playing playlist");
-            return;
-          }
-
-          var option = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  icon: const Icon(Icons.playlist_remove),
-                  title: const Text("Clear this playlist?"),
-                  actions: <TextButton>[
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("NO"),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("YES"),
-                    ),
-                  ],
-                ),
-              ) ??
-              false;
-
-          if (option) {
-            await playlist.clear();
-            await Fluttertoast.showToast(msg: "Cleared playlist");
-            refresh();
-          }
-        },
-      );
-
-  ListTile removePlaylistButton(PlaylistData playlist) => ListTile(
-        leading: const Icon(Icons.delete),
-        title: const Text("Remove playlist"),
-        onTap: () async {
-          if (playlist.playing) {
-            await Fluttertoast.showToast(msg: "Cannot remove playing playlist");
-            return;
-          }
-
-          var option = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  icon: const Icon(Icons.playlist_remove),
-                  title: const Text("Remove this playlist?"),
-                  actions: <TextButton>[
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("NO"),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("YES"),
-                    ),
-                  ],
-                ),
-              ) ??
-              false;
-
-          if (option) {
-            await playlist.removePlaylist();
-            await Fluttertoast.showToast(msg: "Removed playlist");
-            refresh();
-          }
-        },
-      );
-
-  Widget trackTile(PlaylistData playlist, int index) {
-    var track = playlist.tracks[index];
-    if (!displayTrack(track)) {
-      return const SizedBox.shrink();
-    }
-
-    var isPlayingTrack = playlist.playing && (client.playingInfo.index == index);
-
-    Widget? trailing;
-    if (isPlayingTrack) {
-      trailing = StreamBuilder(
-        stream: client.playingInfo.realtimePlayingInfos,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            throw snapshot.error!;
-          }
-
-          var data = snapshot.data;
-          return (data == null || !data.isPlaying)
-              ? TextButton(
-                  onPressed: () => client.resume(),
-                  child: const Icon(
-                    Icons.play_arrow_outlined,
-                    color: defaultIconColor,
-                  ),
-                )
-              : TextButton(
-                  onPressed: () => client.pause(),
-                  child: const Icon(
-                    Icons.pause,
-                    color: defaultIconColor,
-                  ),
-                );
-        },
-      );
-    }
-
-    var textStyle = isPlayingTrack ? const TextStyle(color: Colors.green) : null;
-    return ListTile(
-      leading: AspectRatio(aspectRatio: 1.0, child: track.displayThumbnail(fit: BoxFit.cover)),
-      title: Text(track.title, style: textStyle, overflow: TextOverflow.ellipsis),
-      subtitle: track.artist == null ? null : Text(track.artist!, style: textStyle),
-      trailing: trailing,
-      onTap: () async {
-        Navigator.pushReplacementNamed(context, "/current");
-        if (!isPlayingTrack) await client.play(playlist: playlist, index: index);
-      },
-      onLongPress: () async {
-        var option = await showDialog<TrackOption>(
-          context: context,
-          builder: (context) => SimpleDialog(
-            title: const Text("Track options"),
-            children: <Widget>[
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, TrackOption.delete),
-                child: const Text("Delete"),
-              ),
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, TrackOption.editTitle),
-                child: const Text("Edit title"),
-              ),
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, TrackOption.addToPlaylist),
-                child: const Text("Add to playlist"),
-              ),
-            ],
-          ),
-        );
-
-        switch (option) {
-          case TrackOption.delete:
-            if ((client.playingInfo.playlist == playlist) && (client.playingInfo.index == index)) {
-              await Fluttertoast.showToast(msg: "Cannot remove playing track");
-            } else {
-              await playlist.remove(index);
-              await Fluttertoast.showToast(msg: "Removed ${track.title}");
-              refresh();
-            }
-            return;
-
-          case TrackOption.editTitle:
-            if (!mounted) return;
-
-            var controller = TextEditingController(text: track.title);
-            var newTitle = await showDialog<String>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text("Edit title"),
-                content: TextField(
-                  controller: controller,
-                  decoration: const InputDecoration.collapsed(hintText: "New title"),
-                  keyboardType: TextInputType.text,
-                  showCursor: true,
-                  enableSuggestions: false,
-                  maxLength: 50,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                ),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, controller.text),
-                    child: const Text("OK"),
-                  ),
-                ],
-              ),
-            );
-
-            if (newTitle != null) {
-              var status = await track.editTitle(newTitle: newTitle);
-
-              if (status) {
-                await Fluttertoast.showToast(msg: "Set track title to \"$newTitle\"");
-                refresh();
-              } else {
-                await Fluttertoast.showToast(msg: "Unable to change track title!");
-              }
-            }
-
-            return;
-
-          case TrackOption.addToPlaylist:
-            var playlists = await PlaylistData.fetchPlaylists(client: client);
-
-            if (!mounted) return;
-
-            var target = await showDialog<PlaylistData>(
-              context: context,
-              builder: (context) => AlertDialog(
-                icon: const Icon(Icons.add_outlined),
-                title: const Text("Add to playlist"),
-                content: DropdownButtonFormField<PlaylistData>(
-                  items: List<DropdownMenuItem<PlaylistData>>.generate(
-                    playlists.length,
-                    (index) => DropdownMenuItem(
-                      value: playlists[index],
-                      child: Text(playlists[index].name),
-                    ),
-                  ),
-                  hint: const Text("Choose a playlist"),
-                  onChanged: (value) => Navigator.pop(context, value),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Cancel"),
-                  ),
-                ],
-              ),
-            );
-
-            if (target == null) return;
-            await target.add(track);
-            await Fluttertoast.showToast(msg: "Added track to \"${target.name}\"");
-            refresh();
-
-            return;
-
-          default:
-            return;
-        }
-      },
-    );
-  }
-
-  Widget constructPage(BuildContext context, AsyncSnapshot<List<PlaylistData>> snapshot) {
-    if (snapshot.hasError) {
-      throw snapshot.error!;
-    }
-
-    switch (snapshot.connectionState) {
-      case ConnectionState.waiting:
-        return Center(child: loadingIndicator(content: "Loading playlists"));
-
-      case ConnectionState.done:
-        var playlists = snapshot.data!;
-        playlists.sort((first, second) => first.name.compareTo(second.name));
-
-        if (playlists.isEmpty) {
-          return Center(
-            child: RichText(
-              text: const TextSpan(
-                children: <InlineSpan>[
-                  TextSpan(text: "Click "),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: Icon(Icons.playlist_add),
-                  ),
-                  TextSpan(text: " to create a new playlist"),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Column(
-          children: [
-            Flexible(
-              child: ListView.builder(
-                itemCount: playlists.length,
-                itemBuilder: (context, playlistIndex) {
-                  var playlist = playlists[playlistIndex];
-                  return ExpansionTile(
-                    title: Text(
-                      "(${playlist.length}) ${playlist.name}",
-                      style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
-                    ),
-                    subtitle: Text(
-                      playlist.displayArtists,
-                      style: TextStyle(color: playlist.playing ? Colors.green : _defaultPlaylistColor),
-                    ),
-                    initiallyExpanded: _isSearching,
-                    children: List<Widget>.generate(
-                      playlist.tracks.length + 4,
-                      (index) {
-                        switch (index) {
-                          case 0:
-                            return addNewTrackButton(playlist);
-
-                          case 1:
-                            return editPlaylistNameButton(playlist);
-
-                          case 2:
-                            return clearPlaylistButton(playlist);
-
-                          case 3:
-                            return removePlaylistButton(playlist);
-
-                          default:
-                            return trackTile(playlists[playlistIndex], index - 4);
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-
-      default:
-        throw LogicalFlowException(constructPage);
-    }
-  }
-
-  @override
-  void dispose() {
-    client.playingInfo.state.removeListener(refresh);
-    _searchingString.removeListener(refresh);
-    super.dispose();
-  }
-
-  @override
-  void initState() {
-    client.playingInfo.state.addListener(refresh);
-    _searchingString.addListener(refresh);
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
+    Playlist.fetchAll(state: state);
     var scaffold = Scaffold(
       key: scaffoldKey,
-      appBar: _isSearching
-          ? AppBar(
-              leading: TextButton(
-                onPressed: () => openDrawer(),
-                child: const Icon(Icons.queue_music_outlined),
-              ),
-              title: Align(
-                alignment: Alignment.centerLeft,
-                child: TextField(
-                  decoration: const InputDecoration(border: InputBorder.none, hintText: "Search track title"),
-                  keyboardType: TextInputType.text,
-                  showCursor: true,
-                  autofocus: _searchingString.value!.isEmpty,
-                  enableSuggestions: false,
-                  onChanged: (value) {
-                    _searchingString.value = value;
-                  },
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: openDrawer,
+          icon: const Icon(Icons.queue_music_outlined),
+        ),
+        title: const Text("Playlists"),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              var controller = TextEditingController();
+              var title = await showDialog<String>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Create a new playlist"),
+                  content: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration.collapsed(hintText: "Playlist title"),
+                    keyboardType: TextInputType.text,
+                    showCursor: true,
+                    autofocus: true,
+                    enableSuggestions: false,
+                    maxLength: 50,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                    onSubmitted: (value) => Navigator.pop(context, value),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, controller.text),
+                      child: const Text("OK"),
+                    ),
+                  ],
+                ),
+              );
+
+              if (title != null) {
+                if (title.isNotEmpty) {
+                  await Playlist.create(title, state: state);
+
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Created a new playlist!")));
+                } else {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Playlist title cannot be empty!")));
+                }
+              }
+            },
+            icon: const Icon(Icons.playlist_add_outlined),
+          ),
+        ],
+      ),
+      drawer: createDrawer(context: context, state: state),
+      body: StreamBuilder(
+        stream: Playlist.playlistsStream,
+        builder: (context, snapshot) {
+          var error = snapshot.error;
+          if (error != null) throw error;
+
+          var playlists = snapshot.data ?? <Playlist>[];
+          if (playlists.isEmpty) {
+            return Center(
+              child: RichText(
+                text: const TextSpan(
+                  children: <InlineSpan>[
+                    TextSpan(text: "Click "),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Icon(Icons.playlist_add),
+                    ),
+                    TextSpan(text: " to create a new playlist"),
+                  ],
                 ),
               ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () {
-                    _isSearching = false;
-                    refresh();
-                  },
-                  child: const Icon(Icons.search_off_outlined),
-                ),
-                seperator,
-              ],
-            )
-          : AppBar(
-              leading: TextButton(
-                onPressed: () => openDrawer(),
-                child: const Icon(Icons.queue_music_outlined),
-              ),
-              title: const Text("Playlists"),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () async {
-                    var controller = TextEditingController();
-                    var name = await showDialog<String>(
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(3.0),
+            itemCount: playlists.length,
+            itemBuilder: (context, index) {
+              var playlist = playlists[index];
+
+              var children = <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.add_outlined),
+                  title: const Text("Add a new track"),
+                  onTap: () async {
+                    var directories = await getCommonDirectories();
+
+                    if (!mounted) return;
+                    var rootDirectory = await showDialog<String>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        icon: const Icon(Icons.playlist_add),
-                        title: const Text("Create a new playlist"),
+                        title: const Text("Choose a location"),
+                        content: DropdownMenu(
+                          dropdownMenuEntries: List<DropdownMenuEntry<String>>.generate(
+                            directories.length,
+                            (index) => DropdownMenuEntry<String>(label: directories[index], value: directories[index]),
+                          ),
+                          hintText: "Select",
+                          onSelected: (value) => Navigator.pop(context, value),
+                        ),
+                      ),
+                    );
+
+                    if (rootDirectory == null || !mounted) return;
+
+                    var pickedPath = await FilesystemPicker.openDialog(
+                      context: context,
+                      requestPermission: () async {
+                        var status = await Permission.storage.request();
+                        return status.isGranted;
+                      },
+                      rootDirectory: Directory(rootDirectory),
+                      title: "Select a folder or an audio file",
+                    );
+
+                    if (pickedPath == null) return;
+
+                    var file = File(pickedPath);
+                    if (await file.exists()) {
+                      var track = await Track.fromPath(pickedPath);
+                      if (track != null) {
+                        await playlist.add(track);
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added a track to playlist!")));
+                      } else {
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Not an audio file!")));
+                      }
+                    }
+
+                    var directory = Directory(pickedPath);
+                    if (await directory.exists()) {
+                      var tracks = <Track>[];
+
+                      Future<void> fromEntity(FileSystemEntity entity) async {
+                        if (entity is File) {
+                          var track = await Track.fromPath(entity.path);
+                          if (track != null) {
+                            tracks.add(track);
+                          }
+                        }
+                      }
+
+                      var completer = Event();
+                      var futures = <Future<void>>[];
+                      directory.list(recursive: true, followLinks: false).listen(
+                        (entity) {
+                          futures.add(fromEntity(entity));
+                        },
+                        onDone: completer.set,
+                      );
+
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Importing audio files...")));
+
+                      await completer.wait();
+                      await Future.wait(futures);
+                      await playlist.addAll(tracks);
+
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Added ${tracks.length} track(s) to playlist!")));
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit_note_outlined),
+                  title: const Text("Rename playlist"),
+                  onTap: () async {
+                    var controller = TextEditingController();
+                    var title = await showDialog<String>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Rename playlist"),
                         content: TextField(
                           controller: controller,
-                          decoration: const InputDecoration.collapsed(hintText: "Playlist name"),
+                          decoration: const InputDecoration.collapsed(hintText: "Playlist title"),
                           keyboardType: TextInputType.text,
                           showCursor: true,
                           autofocus: true,
                           enableSuggestions: false,
                           maxLength: 50,
                           maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                          onSubmitted: (value) => Navigator.pop(context, value),
                         ),
-                        actions: <Widget>[
+                        actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, controller.text),
                             child: const Text("OK"),
@@ -586,42 +221,78 @@ class _PlaylistPageState extends State<PlaylistPage> with PageStateWithDrawer<Pl
                       ),
                     );
 
-                    if (name == null) return;
+                    if (title != null) {
+                      if (title.isNotEmpty) {
+                        await playlist.rename(title);
 
-                    if (name.isNotEmpty) {
-                      await PlaylistData.createPlaylist(client: client, name: name);
-                      await Fluttertoast.showToast(msg: "Created a new playlist!");
-                      refresh();
-                    } else {
-                      await Fluttertoast.showToast(msg: "Playlist name cannot be empty!");
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Renamed playlist!")));
+                      } else {
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Playlist title cannot be empty!")));
+                      }
                     }
                   },
-                  child: const Icon(Icons.playlist_add),
-                ),
-                seperator,
-                TextButton(
-                  onPressed: () {
-                    _isSearching = true;
-                    refresh();
+                )
+              ];
+
+              children.addAll(
+                Iterable<Widget>.generate(
+                  playlist.items.length,
+                  (index) {
+                    var track = playlist.items[index];
+                    var artist = track.trackInfo.artist;
+
+                    return StreamBuilder(
+                      initialData: state,
+                      stream: state.streamState,
+                      builder: (context, _) => ListTile(
+                        leading: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 45.0, maxHeight: 45.0),
+                          child: fallbackToLogo(track.trackInfo.thumbnailPath),
+                        ),
+                        title: Text(track.title, style: index == playlist.playingIndex ? const TextStyle(color: Colors.green) : null),
+                        subtitle: artist != null ? Text(artist, style: index == playlist.playingIndex ? const TextStyle(color: Colors.green) : null) : null,
+                        trailing: index == playlist.playingIndex
+                            ? state.isPlaying
+                                ? IconButton(
+                                    onPressed: state.pause,
+                                    icon: const Icon(Icons.pause_outlined, color: Colors.green),
+                                  )
+                                : IconButton(
+                                    onPressed: state.resume,
+                                    icon: const Icon(Icons.play_arrow_outlined, color: Colors.green),
+                                  )
+                            : null,
+                        onTap: () async {
+                          Navigator.pushReplacementNamed(context, "/play");
+                          if (index != playlist.playingIndex) await state.play(playlist: playlist, index: index);
+                        },
+                      ),
+                    );
                   },
-                  child: const Icon(Icons.search_outlined),
                 ),
-                seperator,
-              ],
-            ),
-      drawer: createPersistenDrawer(context: context, client: client),
-      body: FutureBuilder(
-        future: client.fetchPlaylistsFuture,
-        builder: constructPage,
+              );
+
+              return ExpansionTile(
+                leading: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 45.0, maxHeight: 45.0),
+                  child: fallbackToLogo(playlist.thumbnailPath),
+                ),
+                title: Text("(${playlist.items.length}) ${playlist.title}"),
+                subtitle: Text(playlist.displayArtist),
+                children: children,
+              );
+            },
+          );
+        },
       ),
     );
 
     return WillPopScope(
+      child: scaffold,
       onWillPop: () async {
-        Navigator.pushReplacementNamed(context, "/current");
+        openDrawer();
         return false;
       },
-      child: scaffold,
     );
   }
 }

@@ -1,4 +1,0 @@
-storePassword=ci-test
-keyPassword=ci-test
-keyAlias=upload
-storeFile=upload-keystore.jks
