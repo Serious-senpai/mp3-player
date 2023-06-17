@@ -1,4 +1,4 @@
-package com.haruka.mp3_player;
+package com.haruka.mp3_player.handler;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,12 +16,12 @@ import io.flutter.plugin.common.MethodChannel;
 
 import static android.media.MediaMetadataRetriever.*;
 
-class MediaMetadataHandler implements FlutterPlugin {
+public class MediaMetadataHandler implements FlutterPlugin {
     private int thumbnailCounter = 0;
     private final MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
     private final FlutterActivity activity;
 
-    MediaMetadataHandler(@NonNull FlutterActivity flutterActivity) {
+    public MediaMetadataHandler(@NonNull FlutterActivity flutterActivity) {
         activity = flutterActivity;
     }
 

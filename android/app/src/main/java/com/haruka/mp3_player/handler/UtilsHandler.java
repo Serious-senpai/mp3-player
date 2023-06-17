@@ -1,4 +1,4 @@
-package com.haruka.mp3_player;
+package com.haruka.mp3_player.handler;
 
 import android.content.Context;
 import android.content.Intent;
@@ -20,7 +20,7 @@ public class UtilsHandler implements FlutterPlugin {
     @NonNull
     private final FlutterActivity activity;
 
-    UtilsHandler(@NonNull FlutterActivity flutterActivity) {
+    public UtilsHandler(@NonNull FlutterActivity flutterActivity) {
         activity = flutterActivity;
     }
 

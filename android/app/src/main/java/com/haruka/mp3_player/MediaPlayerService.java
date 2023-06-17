@@ -23,6 +23,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import io.flutter.embedding.android.FlutterActivity;
+
 public class MediaPlayerService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/notification.channel.id";
@@ -130,7 +132,9 @@ public class MediaPlayerService extends Service {
         notificationBuilder.setContentIntent(
                         PendingIntent.getActivity(
                                 context, NOTIFICATION_ID,
-                                new Intent(context, MainActivity.class),
+                                new FlutterActivity.NewEngineIntentBuilder(MainActivity.class)
+                                        .initialRoute("/play")
+                                        .build(context),
                                 PendingIntent.FLAG_IMMUTABLE
                         )
                 )

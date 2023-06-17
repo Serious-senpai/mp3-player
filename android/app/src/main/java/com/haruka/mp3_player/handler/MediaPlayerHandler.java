@@ -1,4 +1,4 @@
-package com.haruka.mp3_player;
+package com.haruka.mp3_player.handler;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -7,6 +7,9 @@ import android.content.IntentFilter;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.haruka.mp3_player.MediaPlayerImpl;
+import com.haruka.mp3_player.MediaPlayerService;
 
 import org.json.JSONArray;
 import java.util.HashMap;
@@ -19,22 +22,69 @@ public class MediaPlayerHandler implements FlutterPlugin {
     private class PlayerStateReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
-            assert MediaPlayerImpl.UPDATE_STATE_METHOD.equals(intent.getAction());
-            if (channel != null) {
-                HashMap<String, Object> data = new HashMap<>();
-                data.put(MediaPlayerImpl.CURRENT_POSITION_KEY, intent.getIntExtra(MediaPlayerImpl.CURRENT_POSITION_KEY, 0));
-                data.put(MediaPlayerImpl.DURATION_KEY, intent.getIntExtra(MediaPlayerImpl.DURATION_KEY, 0));
-                data.put(MediaPlayerImpl.INDEX_KEY, intent.getIntExtra(MediaPlayerImpl.INDEX_KEY, 0));
-                data.put(MediaPlayerImpl.IS_PLAYING_KEY, intent.getBooleanExtra(MediaPlayerImpl.IS_PLAYING_KEY, false));
-                data.put(MediaPlayerImpl.PLAYLIST_ID_KEY, intent.getIntExtra(MediaPlayerImpl.PLAYLIST_ID_KEY, -1));
-                data.put(MediaPlayerImpl.REPEAT_KEY, intent.getBooleanExtra(MediaPlayerImpl.REPEAT_KEY, false));
+            switch (intent.getAction()) {
+                case MediaPlayerImpl.UPDATE_STATE_METHOD:
+                    if (channel != null) {
+                        HashMap<String, Object> data = new HashMap<>();
+                        data.put(MediaPlayerImpl.CURRENT_POSITION_KEY, intent.getIntExtra(MediaPlayerImpl.CURRENT_POSITION_KEY, 0));
+                        data.put(MediaPlayerImpl.DURATION_KEY, intent.getIntExtra(MediaPlayerImpl.DURATION_KEY, 0));
+                        data.put(MediaPlayerImpl.INDEX_KEY, intent.getIntExtra(MediaPlayerImpl.INDEX_KEY, 0));
+                        data.put(MediaPlayerImpl.IS_PLAYING_KEY, intent.getBooleanExtra(MediaPlayerImpl.IS_PLAYING_KEY, false));
+                        data.put(MediaPlayerImpl.PLAYLIST_ID_KEY, intent.getIntExtra(MediaPlayerImpl.PLAYLIST_ID_KEY, -1));
+                        data.put(MediaPlayerImpl.REPEAT_KEY, intent.getBooleanExtra(MediaPlayerImpl.REPEAT_KEY, false));
 
-                channel.invokeMethod(MediaPlayerImpl.UPDATE_STATE_METHOD, data);
+                        channel.invokeMethod(MediaPlayerImpl.UPDATE_STATE_METHOD, data);
+                    }
+                    break;
+
+                case MediaPlayerImpl.ON_COMPLETION_METHOD:
+                    if (channel != null) {
+                        channel.invokeMethod(MediaPlayerImpl.ON_COMPLETION_METHOD, null);
+                    }
+                    break;
+
+                case MediaPlayerImpl.ON_ERROR_METHOD:
+                    if (channel != null) {
+                        HashMap<String, Object> data = new HashMap<>();
+                        data.put("what", intent.getIntExtra("what", 0));
+                        data.put("extra", intent.getIntExtra("extra", 0));
+
+                        channel.invokeMethod(MediaPlayerImpl.ON_ERROR_METHOD, data);
+                    }
+                    break;
+
+                case MediaPlayerImpl.ON_INFO_METHOD:
+                    if (channel != null) {
+                        HashMap<String, Object> data = new HashMap<>();
+                        data.put("what", intent.getIntExtra("what", 0));
+                        data.put("extra", intent.getIntExtra("extra", 0));
+
+                        channel.invokeMethod(MediaPlayerImpl.ON_INFO_METHOD, data);
+                    }
+                    break;
+
+                case MediaPlayerImpl.ON_PREPARED_METHOD:
+                    if (channel != null) {
+                        channel.invokeMethod(MediaPlayerImpl.ON_PREPARED_METHOD, null);
+                    }
+                    break;
+
+                case MediaPlayerImpl.ON_SEEK_COMPLETE_METHOD:
+                    if (channel != null) {
+                        channel.invokeMethod(MediaPlayerImpl.ON_SEEK_COMPLETE_METHOD, null);
+                    }
+                    break;
             }
         }
 
         public void register(@NonNull Context context) {
-            IntentFilter intentFilter = new IntentFilter(MediaPlayerImpl.UPDATE_STATE_METHOD);
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(MediaPlayerImpl.UPDATE_STATE_METHOD);
+            intentFilter.addAction(MediaPlayerImpl.ON_COMPLETION_METHOD);
+            intentFilter.addAction(MediaPlayerImpl.ON_ERROR_METHOD);
+            intentFilter.addAction(MediaPlayerImpl.ON_INFO_METHOD);
+            intentFilter.addAction(MediaPlayerImpl.ON_PREPARED_METHOD);
+            intentFilter.addAction(MediaPlayerImpl.ON_SEEK_COMPLETE_METHOD);
             context.registerReceiver(this, intentFilter);
         }
 
@@ -57,7 +107,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
      *
      * @param flutterActivity The {@link FlutterActivity} that registers this plugin.
      */
-    MediaPlayerHandler(@NonNull FlutterActivity flutterActivity) {
+    public MediaPlayerHandler(@NonNull FlutterActivity flutterActivity) {
         activity = flutterActivity;
     }
 

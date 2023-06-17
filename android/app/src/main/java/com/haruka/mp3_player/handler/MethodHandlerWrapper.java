@@ -1,4 +1,4 @@
-package com.haruka.mp3_player;
+package com.haruka.mp3_player.handler;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.UiThread;
@@ -15,7 +15,7 @@ public class MethodHandlerWrapper implements MethodChannel.MethodCallHandler {
     @NonNull
     private final ThrowableMethodHandler inner;
 
-    MethodHandlerWrapper(@NonNull ThrowableMethodHandler handler){
+    public MethodHandlerWrapper(@NonNull ThrowableMethodHandler handler){
         inner = handler;
     }
 

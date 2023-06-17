@@ -58,7 +58,7 @@ class ApplicationState {
   /// See also: https://developer.android.com/reference/android/media/MediaPlayer#getCurrentPosition()
   int currentPosition = 0;
 
-  /// The duration (a.k.a length) in milliseconds of [currentTrack]. This value shouldn't be rely on when no track is playing.
+  /// The duration (a.k.a. length) in milliseconds of [currentTrack]. This value shouldn't be rely on when no track is playing.
   ///
   /// This should be the same as `MediaPlayer.getDuration()` on the native side.
   /// See also: https://developer.android.com/reference/android/media/MediaPlayer#getDuration()

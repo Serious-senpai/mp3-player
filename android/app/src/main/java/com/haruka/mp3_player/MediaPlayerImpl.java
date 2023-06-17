@@ -1,6 +1,5 @@
 package com.haruka.mp3_player;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
@@ -20,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public class MediaPlayerImpl extends MediaPlayer {
     @Nullable
-    @SuppressLint("StaticFieldLeak")
+    // @SuppressLint("StaticFieldLeak")
     private static MediaPlayerImpl instance;
     public static final String UPDATE_NOTIFICATION_ACTION = "com.haruka.mp3_player.UPDATE_NOTIFICATION_ACTION";
     public static final String UPDATE_STATE_METHOD = "com.haruka.mp3_player.UPDATE_STATE";
@@ -137,8 +136,8 @@ public class MediaPlayerImpl extends MediaPlayer {
         return context;
     }
 
-    public synchronized void setContext(@Nullable Context context) {
-        this.context = context;
+    public synchronized void setContext(@Nullable Context newContext) {
+        context = newContext;
     }
 
     public synchronized void setTracks(@NonNull List<TrackMetadata> updateTracks) {
@@ -299,5 +298,6 @@ public class MediaPlayerImpl extends MediaPlayer {
     public void release() {
         super.release();
         executor.shutdown();
+        setContext(null);
     }
 }

@@ -118,7 +118,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
               var children = <Widget>[
                 ListTile(
                   leading: const Icon(Icons.add_outlined),
-                  title: const Text("Add a new track"),
+                  title: const Text("Add a new track(s)"),
                   onTap: () async {
                     var directories = await getCommonDirectories();
 
@@ -132,7 +132,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                             directories.length,
                             (index) => DropdownMenuEntry<String>(label: directories[index], value: directories[index]),
                           ),
-                          hintText: "Select",
+                          hintText: "Select a directory",
                           onSelected: (value) => Navigator.pop(context, value),
                         ),
                       ),
