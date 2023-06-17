@@ -132,6 +132,22 @@ class Playlist {
     _streamEvent.set();
   }
 
+  /// Delete this playlist
+  Future<void> delete() async {
+    await _state.database.delete(
+      "playlists",
+      where: "id = ?",
+      whereArgs: [id],
+    );
+
+    playlists.remove(id);
+    if (isPlaying) {
+      await _state.stop();
+    }
+
+    _streamEvent.set();
+  }
+
   /// Construct a [Playlist] from a database row
   static Future<Playlist> fromRow(Map<String, dynamic> row, {required ApplicationState state}) async {
     var result = await _playlistsLock.run(

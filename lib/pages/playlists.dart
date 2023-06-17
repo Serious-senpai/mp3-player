@@ -120,20 +120,27 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                   leading: const Icon(Icons.add_outlined),
                   title: const Text("Add a new track(s)"),
                   onTap: () async {
-                    var directories = await getCommonDirectories();
+                    var directories = await getExternalFilesDirs() ?? [];
 
                     if (!mounted) return;
-                    var rootDirectory = await showDialog<String>(
+                    var rootDirectory = await showDialog<Directory>(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text("Choose a location"),
-                        content: DropdownMenu(
-                          dropdownMenuEntries: List<DropdownMenuEntry<String>>.generate(
+                        content: DropdownButtonFormField<Directory>(
+                          items: List<DropdownMenuItem<Directory>>.generate(
                             directories.length,
-                            (index) => DropdownMenuEntry<String>(label: directories[index], value: directories[index]),
+                            (index) => DropdownMenuItem<Directory>(
+                              value: directories[index],
+                              child: Text(
+                                directories[index].path,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ),
-                          hintText: "Select a directory",
-                          onSelected: (value) => Navigator.pop(context, value),
+                          hint: const Text("Select a directory"),
+                          isExpanded: true,
+                          onChanged: (value) => Navigator.pop(context, value),
                         ),
                       ),
                     );
@@ -146,7 +153,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                         var status = await Permission.storage.request();
                         return status.isGranted;
                       },
-                      rootDirectory: Directory(rootDirectory),
+                      rootDirectory: rootDirectory,
+                      showGoUp: true,
                       title: "Select a folder or an audio file",
                     );
 
@@ -234,7 +242,35 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                       }
                     }
                   },
-                )
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text("Remove playlist"),
+                  onTap: () async {
+                    var option = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text("Delete this playlist?"),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text("Yes"),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("No"),
+                              ),
+                            ],
+                          ),
+                        ) ??
+                        false;
+
+                    if (option) {
+                      await playlist.delete();
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Removed playlist")));
+                    }
+                  },
+                ),
               ];
 
               children.addAll(

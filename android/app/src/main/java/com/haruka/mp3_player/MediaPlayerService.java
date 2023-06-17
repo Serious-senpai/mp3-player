@@ -85,6 +85,12 @@ public class MediaPlayerService extends Service {
     }
 
     @NonNull
+    private Bitmap getApplicationIcon() throws PackageManager.NameNotFoundException {
+        Drawable drawable = getPackageManager().getApplicationIcon(getPackageName());
+        return drawableToBitmap(drawable);
+    }
+
+    @NonNull
     private final NotificationUpdateReceiver receiver = new NotificationUpdateReceiver();
 
     @Nullable
@@ -125,7 +131,16 @@ public class MediaPlayerService extends Service {
         }
 
         Context context = getApplicationContext();
-        Bitmap thumbnail = BitmapFactory.decodeFile(track.thumbnailPath);
+        @Nullable Bitmap thumbnail = null;
+        if (track.thumbnailPath != null) {
+            thumbnail = BitmapFactory.decodeFile(track.thumbnailPath);
+        } else {
+            try {
+                thumbnail = getApplicationIcon();
+            } catch (PackageManager.NameNotFoundException error) {
+                error.printStackTrace();
+            }
+        }
 
         createNotificationBuilder();
         assert notificationBuilder != null;
@@ -138,7 +153,7 @@ public class MediaPlayerService extends Service {
                                 PendingIntent.FLAG_IMMUTABLE
                         )
                 )
-                .setContentText(track.artist)
+                .setContentText(track.artist != null ? track.artist : "Unknown artist")
                 .setContentTitle(track.title)
                 .setOnlyAlertOnce(true)
                 .setPriority(Notification.PRIORITY_MAX)
@@ -149,13 +164,6 @@ public class MediaPlayerService extends Service {
         if (thumbnail != null) {
             notificationBuilder.setColor(getDominantColor(thumbnail))
                     .setLargeIcon(thumbnail);
-        } else {
-            try {
-                Drawable drawable = getPackageManager().getApplicationIcon(context.getPackageName());
-                notificationBuilder.setLargeIcon(drawableToBitmap(drawable));
-            } catch (PackageManager.NameNotFoundException error) {
-                error.printStackTrace();
-            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

@@ -47,55 +47,13 @@ Future<bool> isAudioFile(String path) async {
 /// Launch the native web browser to the specified [uri]
 Future<void> launchUri(String uri) => _platform.invokeMapMethod("launchUri", {"uri": uri});
 
-/// Port of https://developer.android.com/reference/android/os/Environment#getDataDirectory()
-Future<String?> getDataDirectory() async {
-  var result = await _platform.invokeMapMethod("getDataDirectory");
-  return result?["path"];
-}
-
-/// Port of https://developer.android.com/reference/android/os/Environment#getDownloadCacheDirectory()
-Future<String?> getDownloadCacheDirectory() async {
-  var result = await _platform.invokeMapMethod("getDownloadCacheDirectory");
-  return result?["path"];
-}
-
-/// Port of https://developer.android.com/reference/android/os/Environment#getExternalStorageDirectory()
-Future<String?> getExternalStorageDirectory() async {
-  var result = await _platform.invokeMapMethod("getExternalStorageDirectory");
-  return result?["path"];
-}
-
-/// Port of https://developer.android.com/reference/android/os/Environment#getStorageDirectory()
-Future<String?> getStorageDirectory() async {
-  var result = await _platform.invokeMapMethod("getStorageDirectory");
-  return result?["path"];
-}
-
-/// Port of https://developer.android.com/reference/android/content/Context#getExternalFilesDirs(java.lang.String)
-/// with parameter `type` being `null`
-Future<List<String>?> getExternalFilesDirs() async {
+/// Get the absolute path to the device's external storages
+/// See also: https://developer.android.com/reference/android/content/Context#getExternalFilesDirs(java.lang.String)
+Future<List<Directory>?> getExternalFilesDirs() async {
   var result = await _platform.invokeMapMethod("getExternalFilesDirs");
-  var paths = result?["paths"];
-
-  return paths != null ? List<String>.from(paths) : null;
-}
-
-/// Return paths from [getExternalStorageDirectory], [getStorageDirectory] and [getExternalFilesDirs].
-///
-/// Results are not duplicated.
-Future<List<String>> getCommonDirectories() async {
-  var results = <String>{};
-
-  for (var func in [
-    getExternalStorageDirectory,
-    getStorageDirectory,
-  ]) {
-    var result = await func();
-    if (result != null) results.add(result);
-  }
-
-  var paths = await getExternalFilesDirs();
-  if (paths != null) results.addAll(paths);
-
-  return List<String>.from(results);
+  var paths = List<String>.from(result?["paths"]);
+  return List<Directory>.generate(
+    paths.length,
+    (index) => Directory(normalize(join(paths[index], "../../../.."))),
+  );
 }

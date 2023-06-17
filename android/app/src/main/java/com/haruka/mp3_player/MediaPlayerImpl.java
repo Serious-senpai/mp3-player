@@ -149,14 +149,7 @@ public class MediaPlayerImpl extends MediaPlayer {
         ArrayList<TrackMetadata> tracks = new ArrayList<>();
         for (int i = 0; i < updateTracks.length(); i++) {
             JSONObject data = updateTracks.getJSONObject(i);
-            tracks.add(
-                    new TrackMetadata(
-                            data.getString("title"),
-                            data.getString("artist"),
-                            data.getString("uri"),
-                            data.getString("thumbnailPath")
-                    )
-            );
+            tracks.add(TrackMetadata.fromJson(data));
         }
 
         setTracks(tracks);
