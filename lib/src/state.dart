@@ -68,14 +68,17 @@ class ApplicationState {
   ApplicationState._({required this.database}) : _platform = const MethodChannel("com.haruka.mp3_player/player", JSONMethodCodec()) {
     _platform.setMethodCallHandler(
       (call) async {
-        print("Received $call");
+        // print("Received $call");
         switch (call.method) {
           case UPDATE_STATE_METHOD:
             var arguments = call.arguments;
 
             if (arguments[PLAYLIST_ID_KEY] >= 0) {
               _currentPlaylist = await Playlist.fromId(arguments[PLAYLIST_ID_KEY], state: this);
+            } else {
+              _currentPlaylist = null;
             }
+
             _index = arguments[INDEX_KEY];
             isPlaying = arguments[IS_PLAYING_KEY];
             repeat = arguments[REPEAT_KEY];
@@ -122,7 +125,6 @@ class ApplicationState {
         "index": index,
       },
     );
-    _currentPlaylist = playlist;
   }
 
   /// Request a pause from the native side
@@ -134,18 +136,14 @@ class ApplicationState {
   /// Request to the native side that the MediaPlayer should seek to the specified [duration]
   Future<void> seek(Duration duration) => _platform.invokeMapMethod("seek", {"duration": duration.inMilliseconds});
 
-  /// Request to the native side to skip to the next track in the [Playlist]
+  /// Request to the native side to skip to the next track in [currentPlaylist]
   Future<void> next() => _platform.invokeMapMethod("next");
 
-  /// Request to the native side to skip to the previous track in the [Playlist]
+  /// Request to the native side to skip to the previous track in the [currentPlaylist]
   Future<void> previous() => _platform.invokeMapMethod("previous");
 
   /// Request to the native side to stop the MediaPlayer
-  Future<void> stop() async {
-    await _platform.invokeMapMethod("stop");
-    _currentPlaylist = null;
-    _index = -1;
-  }
+  Future<void> stop() => _platform.invokeMapMethod("stop");
 
   /// Toggle the looping mode of the native MediaPlayer
   ///

@@ -1,6 +1,5 @@
 package com.haruka.mp3_player;
 
-import android.content.Intent;
 import androidx.annotation.NonNull;
 
 import io.flutter.embedding.android.FlutterActivity;
@@ -20,9 +19,5 @@ public class MainActivity extends FlutterActivity {
         pluginRegistry.add(mediaMetadataHandler);
         pluginRegistry.add(mediaPlayerHandler);
         pluginRegistry.add(utilsHandler);
-
-        if (!MediaPlayerService.started()){
-            startService(new Intent(getApplicationContext(), MediaPlayerService.class));
-        }
     }
 }

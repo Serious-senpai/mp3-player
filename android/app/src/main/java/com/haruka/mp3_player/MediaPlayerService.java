@@ -27,7 +27,6 @@ public class MediaPlayerService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/notification.channel.id";
     private static final String NOTIFICATION_CHANNEL_NAME = "mp3_player/notification.channel.name";
-    private static boolean started = false;
 
     private class NotificationUpdateReceiver extends BroadcastReceiver {
         @Override
@@ -36,13 +35,13 @@ public class MediaPlayerService extends Service {
             displayNotification();
         }
 
-        public void register(@NonNull Context context) {
+        public void register() {
             IntentFilter intentFilter = new IntentFilter(MediaPlayerImpl.UPDATE_NOTIFICATION_ACTION);
-            context.registerReceiver(this, intentFilter);
+            registerReceiver(this, intentFilter);
         }
 
-        public void unregister(@NonNull Context context) {
-            context.unregisterReceiver(this);
+        public void unregister() {
+            unregisterReceiver(this);
         }
     }
 
@@ -83,10 +82,6 @@ public class MediaPlayerService extends Service {
         return bitmap;
     }
 
-    public static boolean started() {
-        return started;
-    }
-
     @NonNull
     private final NotificationUpdateReceiver receiver = new NotificationUpdateReceiver();
 
@@ -98,9 +93,10 @@ public class MediaPlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Context context = getApplicationContext();
+        player.setContext(context);
+        receiver.register();
         displayNotification();
-        receiver.register(getApplicationContext());
-        started = true;
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -109,8 +105,7 @@ public class MediaPlayerService extends Service {
         super.onDestroy();
 
         Context context = getApplicationContext();
-        receiver.unregister(context);
-        MediaPlayerImpl player = MediaPlayerImpl.create();
+        receiver.unregister();
         if (player.getContext() == context) {
             player.setContext(null);
         }
@@ -152,7 +147,7 @@ public class MediaPlayerService extends Service {
                     .setLargeIcon(thumbnail);
         } else {
             try {
-                Drawable drawable = context.getPackageManager().getApplicationIcon(context.getPackageName());
+                Drawable drawable = getPackageManager().getApplicationIcon(context.getPackageName());
                 notificationBuilder.setLargeIcon(drawableToBitmap(drawable));
             } catch (PackageManager.NameNotFoundException error) {
                 error.printStackTrace();

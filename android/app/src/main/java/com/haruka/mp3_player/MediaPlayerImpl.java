@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import io.flutter.Log;
 
 public class MediaPlayerImpl extends MediaPlayer {
     @Nullable
@@ -107,7 +106,7 @@ public class MediaPlayerImpl extends MediaPlayer {
                 (player) -> {
                     try {
                         start();
-                    } catch (IllegalStateException error){
+                    } catch (IllegalStateException error) {
                         error.printStackTrace();
                     }
 
@@ -288,6 +287,7 @@ public class MediaPlayerImpl extends MediaPlayer {
         playlistId = index = -1;
         mayResume = false;
         updateTrack(null);
+        sendState();
     }
 
     public void toggleRepeat() {

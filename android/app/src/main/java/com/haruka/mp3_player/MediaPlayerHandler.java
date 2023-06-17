@@ -70,6 +70,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
         channel.setMethodCallHandler(
                 new MethodHandlerWrapper(
                         (method, result) -> {
+                            Intent serviceIntent = new Intent(context, MediaPlayerService.class);
                             switch (method.method) {
                                 case "play":
                                     JSONArray playTracks = method.argument("tracks");
@@ -85,6 +86,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
                                     player.setIndex(playIndex);
 
                                     player.play();
+                                    activity.startService(serviceIntent);
                                     result.success(null);
                                     break;
 
@@ -118,6 +120,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
                                 case "stop":
                                     player.stop();
                                     result.success(null);
+                                    context.stopService(serviceIntent);
                                     break;
 
                                 case "toggleRepeat":
@@ -133,7 +136,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
                                     }
 
                                     Integer updatePlaylistId = method.argument("playlistId");
-                                    if (updatePlaylistId != null){
+                                    if (updatePlaylistId != null) {
                                         player.setPlaylistId(updatePlaylistId);
                                     }
 
