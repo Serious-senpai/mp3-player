@@ -9,7 +9,10 @@ permissions:
 jobs:
   build:
     name: Build test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
     steps:
     - name: Checkout repository
@@ -36,7 +39,9 @@ jobs:
         flutter doctor -v
 
     - name: Initialize project
-      run: flutter create --android-language java --platforms android --project-name mp3_player .
+      run: |
+        flutter create --android-language java --platforms android --project-name mp3_player .
+        cp debug/key.properties android/key.properties
 
     - name: Build APK
       run: flutter build apk -v
