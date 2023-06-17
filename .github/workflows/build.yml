@@ -36,7 +36,7 @@ jobs:
         flutter doctor -v
 
     - name: Initialize project
-      run: flutter create --platforms android --project-name mp3_player .
+      run: flutter create --android-language java --platforms android --project-name mp3_player .
 
     - name: Test APK build
       run: flutter build apk -v
