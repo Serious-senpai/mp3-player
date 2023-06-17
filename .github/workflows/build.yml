@@ -1,4 +1,4 @@
-name: Flutter build Test
+name: Flutter build
 
 on: push
 
@@ -38,11 +38,14 @@ jobs:
     - name: Initialize project
       run: flutter create --android-language java --platforms android --project-name mp3_player .
 
-    - name: Test APK build
+    - name: Build APK
       run: flutter build apk -v
+
+    - name: Build App Bundle
+      run: flutter build appbundle -v
 
     - name: Upload build
       uses: actions/upload-artifact@v3
       with:
         name: mp3-player-build
-        path: build/
+        path: build/app/outputs/
