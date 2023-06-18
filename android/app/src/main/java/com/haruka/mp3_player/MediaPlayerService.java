@@ -25,6 +25,10 @@ import androidx.annotation.RequiresApi;
 
 import io.flutter.embedding.android.FlutterActivity;
 
+/**
+ * The foreground {@link Service} which is responsible for displaying the notification to keep the
+ * audio playing.
+ */
 public class MediaPlayerService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/notification.channel.id";
@@ -37,12 +41,12 @@ public class MediaPlayerService extends Service {
             displayNotification();
         }
 
-        public void register() {
+        private void register() {
             IntentFilter intentFilter = new IntentFilter(MediaPlayerImpl.UPDATE_NOTIFICATION_ACTION);
             registerReceiver(this, intentFilter);
         }
 
-        public void unregister() {
+        private void unregister() {
             unregisterReceiver(this);
         }
     }

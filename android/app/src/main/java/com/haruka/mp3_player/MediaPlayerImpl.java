@@ -17,6 +17,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Controller for a {@link MediaPlayer} that manages playbacks and broadcasting state.
+ */
 public class MediaPlayerImpl extends MediaPlayer {
     @Nullable
     // @SuppressLint("StaticFieldLeak")
@@ -36,6 +39,9 @@ public class MediaPlayerImpl extends MediaPlayer {
     public static final String PLAYLIST_ID_KEY = "PLAYLIST_ID";
     public static final String REPEAT_KEY = "REPEAT";
 
+    /**
+     * The current playing track, if any.
+     */
     @Nullable
     public TrackMetadata currentTrack;
 
@@ -125,26 +131,53 @@ public class MediaPlayerImpl extends MediaPlayer {
         executor.scheduleWithFixedDelay(this::sendState, 0, 300, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Get the singleton instance of {@link MediaPlayerImpl}, generate one if necessary.
+     *
+     * @return The singleton instance of {@link MediaPlayerImpl}
+     */
     @NonNull
     public synchronized static MediaPlayerImpl create() {
         if (instance == null) instance = new MediaPlayerImpl();
         return instance;
     }
 
+    /**
+     * Get the internal {@link Context}, which is responsible for sending states and events
+     * for {@link android.content.BroadcastReceiver} to receive.
+     *
+     * @return The internal {@link Context}, if any.
+     */
     @Nullable
     public synchronized Context getContext() {
         return context;
     }
 
+    /**
+     * Set the internal {@link Context}, or clear it to null.
+     *
+     * @param newContext The new {@link Context} value.
+     */
     public synchronized void setContext(@Nullable Context newContext) {
         context = newContext;
     }
 
+    /**
+     * Set the tracks to be played.
+     *
+     * @param updateTracks Tracks to be played.
+     */
     public synchronized void setTracks(@NonNull List<TrackMetadata> updateTracks) {
         tracks.clear();
         tracks.addAll(updateTracks);
     }
 
+    /**
+     * Set the tracks to be played by parsing a {@link JSONArray}.
+     *
+     * @param updateTracks Tracks to be played.
+     * @throws JSONException Exceptions when parsing {@link JSONArray}.
+     */
     public void setTracks(@NonNull JSONArray updateTracks) throws JSONException {
         ArrayList<TrackMetadata> tracks = new ArrayList<>();
         for (int i = 0; i < updateTracks.length(); i++) {
@@ -155,10 +188,20 @@ public class MediaPlayerImpl extends MediaPlayer {
         setTracks(tracks);
     }
 
+    /**
+     * Set the current playlist ID. This value is only used by the Dart side when recovering state.
+     *
+     * @param updatePlaylistId The playlist ID.
+     */
     public synchronized void setPlaylistId(int updatePlaylistId) {
         playlistId = updatePlaylistId;
     }
 
+    /**
+     * Set the index (starting from 0) of the playing track among the given tracks.
+     *
+     * @param updateIndex The track index.
+     */
     public synchronized void setIndex(int updateIndex) {
         index = updateIndex;
     }
@@ -204,6 +247,12 @@ public class MediaPlayerImpl extends MediaPlayer {
         }
     }
 
+    /**
+     * Start playing at the given index of the given playlist.
+     *
+     * @throws IOException           Exception when reading data source.
+     * @throws IllegalStateException This should never happens.
+     */
     public synchronized void play() throws IOException, IllegalStateException {
         reset();
 
@@ -215,6 +264,11 @@ public class MediaPlayerImpl extends MediaPlayer {
         prepareAsync();
     }
 
+    /**
+     * Pause the playing audio.
+     *
+     * @throws IllegalStateException The player is in an invalid state.
+     */
     @Override
     public synchronized void pause() throws IllegalStateException {
         if (isPlaying()) {
@@ -224,6 +278,11 @@ public class MediaPlayerImpl extends MediaPlayer {
         }
     }
 
+    /**
+     * Resume the playing audio.
+     *
+     * @throws IllegalStateException The player is in an invalid state.
+     */
     public synchronized void resume() throws IllegalStateException {
         if (mayResume) {
             mayResume = false;
@@ -232,12 +291,23 @@ public class MediaPlayerImpl extends MediaPlayer {
         }
     }
 
+    /**
+     * Seek to the specified position.
+     *
+     * @param milliseconds The offset in milliseconds from the start to seek to.
+     * @throws IllegalStateException The player is in an invalid state.
+     */
     @Override
-    public synchronized void seekTo(int milliseconds) {
+    public synchronized void seekTo(int milliseconds) throws IllegalStateException {
         super.seekTo(milliseconds);
         sendState();
     }
 
+    /**
+     * Skip to the next track in the given playlist.
+     *
+     * @throws IllegalStateException The player is in an invalid state.
+     */
     public synchronized void next() throws IllegalStateException {
         super.stop();
         while (true) {
@@ -255,6 +325,11 @@ public class MediaPlayerImpl extends MediaPlayer {
         }
     }
 
+    /**
+     * Skip to the previous track in the given playlist.
+     *
+     * @throws IllegalStateException The player is in an invalid state.
+     */
     public synchronized void previous() throws IllegalStateException {
         super.stop();
         while (true) {
@@ -282,6 +357,9 @@ public class MediaPlayerImpl extends MediaPlayer {
         sendState();
     }
 
+    /**
+     * Toggle the REPEAT mode.
+     */
     public void toggleRepeat() {
         setLooping(!isLooping());
         sendState();
@@ -291,6 +369,6 @@ public class MediaPlayerImpl extends MediaPlayer {
     public void release() {
         super.release();
         executor.shutdown();
-        setContext(null);
+        context = null;
     }
 }

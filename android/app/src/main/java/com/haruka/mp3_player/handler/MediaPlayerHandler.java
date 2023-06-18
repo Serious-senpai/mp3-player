@@ -77,7 +77,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
             }
         }
 
-        public void register(@NonNull Context context) {
+        private void register(@NonNull Context context) {
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction(MediaPlayerImpl.UPDATE_STATE_METHOD);
             intentFilter.addAction(MediaPlayerImpl.ON_COMPLETION_METHOD);
@@ -88,7 +88,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
             context.registerReceiver(this, intentFilter);
         }
 
-        public void unregister(@NonNull Context context) {
+        private void unregister(@NonNull Context context) {
             context.unregisterReceiver(this);
         }
     }

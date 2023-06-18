@@ -16,11 +16,19 @@ import io.flutter.plugin.common.MethodChannel;
 
 import static android.media.MediaMetadataRetriever.*;
 
+/**
+ * A {@link FlutterPlugin} that handles requests related to audio metadata.
+ */
 public class MediaMetadataHandler implements FlutterPlugin {
     private int thumbnailCounter = 0;
     private final MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
     private final FlutterActivity activity;
 
+    /**
+     * Construct a new {@link MediaMetadataHandler} instance.
+     *
+     * @param flutterActivity The {@link FlutterActivity} that registers this plugin.
+     */
     public MediaMetadataHandler(@NonNull FlutterActivity flutterActivity) {
         activity = flutterActivity;
     }

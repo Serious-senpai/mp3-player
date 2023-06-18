@@ -14,10 +14,18 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.JSONMethodCodec;
 import io.flutter.plugin.common.MethodChannel;
 
+/**
+ * A {@link FlutterPlugin} for utilities functions
+ */
 public class UtilsHandler implements FlutterPlugin {
     @NonNull
     private final FlutterActivity activity;
 
+    /**
+     * Initialize a new {@link UtilsHandler}
+     *
+     * @param flutterActivity The {@link FlutterActivity} that registers this plugin.
+     */
     public UtilsHandler(@NonNull FlutterActivity flutterActivity) {
         activity = flutterActivity;
     }

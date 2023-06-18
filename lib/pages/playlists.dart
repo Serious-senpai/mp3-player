@@ -12,6 +12,11 @@ import "../src/state.dart";
 import "../src/tracks.dart";
 import "../src/utils.dart";
 
+/// Actions to perform on a track
+class TrackOption {
+  static const int REMOVE = 0;
+}
+
 /// The initial route of the application that displays all created [Playlist]s
 class PlaylistsPage extends StatefulWidget {
   /// The global [ApplicationState]
@@ -304,6 +309,27 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                         onTap: () async {
                           Navigator.pushReplacementNamed(context, "/play");
                           if (index != playlist.playingIndex) await state.play(playlist: playlist, index: index);
+                        },
+                        onLongPress: () async {
+                          var option = await showDialog<int>(
+                            context: context,
+                            builder: (context) => SimpleDialog(
+                              title: Text(track.title, overflow: TextOverflow.ellipsis),
+                              children: [
+                                SimpleDialogOption(
+                                  onPressed: () => Navigator.pop(context, TrackOption.REMOVE),
+                                  child: const Text("Remove from playlist"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          switch (option) {
+                            case TrackOption.REMOVE:
+                              await playlist.remove(index);
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Removed a track from playlist")));
+                              break;
+                          }
                         },
                       ),
                     );

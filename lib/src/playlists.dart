@@ -108,8 +108,12 @@ class Playlist {
   Future<void> remove(int index) async {
     items.removeAt(index);
 
-    if (isPlaying && index < _state.index) {
-      await _state.update(playlist: this, index: _state.index - 1);
+    if (isPlaying) {
+      if (index < _state.index) {
+        await _state.update(playlist: this, index: _state.index - 1);
+      } else if (index == _state.index) {
+        await _state.stop();
+      }
     }
 
     await push();
