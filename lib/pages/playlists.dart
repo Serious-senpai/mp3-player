@@ -14,7 +14,8 @@ import "../src/utils.dart";
 
 /// Actions to perform on a track
 class TrackOption {
-  static const int REMOVE = 0;
+  static const int SHARE = 0;
+  static const int REMOVE = 1;
 }
 
 /// The initial route of the application that displays all created [Playlist]s
@@ -317,6 +318,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                               title: Text(track.title, overflow: TextOverflow.ellipsis),
                               children: [
                                 SimpleDialogOption(
+                                  onPressed: () => Navigator.pop(context, TrackOption.SHARE),
+                                  child: const Text("Share"),
+                                ),
+                                SimpleDialogOption(
                                   onPressed: () => Navigator.pop(context, TrackOption.REMOVE),
                                   child: const Text("Remove from playlist"),
                                 ),
@@ -325,6 +330,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                           );
 
                           switch (option) {
+                            case TrackOption.SHARE:
+                              await shareFile(track.uri);
+                              break;
+
                             case TrackOption.REMOVE:
                               await playlist.remove(index);
                               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Removed a track from playlist")));

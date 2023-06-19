@@ -41,7 +41,7 @@ public class UtilsHandler implements FlutterPlugin {
                                         case "getMimeTypeFromExtension":
                                             String extension = method.argument("extension");
                                             HashMap<String, String> extensionData = new HashMap<>();
-                                            extensionData.put("mimetype", MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
+                                            extensionData.put("mimeType", MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
 
                                             result.success(extensionData);
                                             break;
@@ -62,6 +62,17 @@ public class UtilsHandler implements FlutterPlugin {
                                             externalFilesDirs.put("paths", paths);
 
                                             result.success(externalFilesDirs);
+                                            break;
+
+                                        case "shareFile":
+                                            Uri shareUri = Uri.parse(method.argument("path"));
+                                            String mimeType = method.argument("mimeType");
+
+                                            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                                            shareIntent.setType(Intent.normalizeMimeType(mimeType == null ? "*/*" : mimeType));
+                                            shareIntent.putExtra(Intent.EXTRA_STREAM, shareUri);
+
+                                            activity.startActivity(Intent.createChooser(shareIntent, "Share this file"));
                                             break;
 
                                         default:

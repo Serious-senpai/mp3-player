@@ -34,14 +34,19 @@ Image fallbackToLogo(String? path, {double? width, double? height}) => path == n
         height: height,
       );
 
-/// Whether a file [path] points to an audio file
-Future<bool> isAudioFile(String path) async {
+/// Returns the MIME type of the given file at [path] (if any)
+Future<String?> getMimeType(String path) async {
   var ext = extension(path);
+  if (ext.isEmpty) return null;
   if (ext[0] == ".") ext = ext.substring(1);
 
   var mimeType = await _platform.invokeMapMethod("getMimeTypeFromExtension", {"extension": ext});
-  if (mimeType == null) return false;
-  return _audioMimeType.contains(mimeType["mimetype"]);
+  return mimeType?["mimeType"];
+}
+
+/// Whether a file [path] points to an audio file
+Future<bool> isAudioFile(String path) async {
+  return _audioMimeType.contains(await getMimeType(path));
 }
 
 /// Launch the native web browser to the specified [uri]
@@ -55,5 +60,16 @@ Future<List<Directory>?> getExternalFilesDirs() async {
   return List<Directory>.generate(
     paths.length,
     (index) => Directory(normalize(join(paths[index], "../../../.."))),
+  );
+}
+
+/// Share a file via other apps
+Future<void> shareFile(String path) async {
+  await _platform.invokeMapMethod(
+    "shareFile",
+    {
+      "path": path,
+      "mimeType": await getMimeType(path),
+    },
   );
 }
