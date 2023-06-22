@@ -12,18 +12,19 @@ import io.flutter.plugin.common.MethodChannel;
  */
 public class MethodHandlerWrapper implements MethodChannel.MethodCallHandler {
     /**
-     * Similar to a {@link MethodChannel.MethodCallHandler} excepts that the method handler is allowed to
+     * Similar to a {@link MethodChannel.MethodCallHandler} excepts that its {@link #onMethodCall(MethodCall, MethodChannel.Result)} is allowed to
      * throw any {@link Exception}.
      *
      * @see MethodChannel.MethodCallHandler
      */
     public interface ThrowableMethodHandler {
         /**
-         * The method handler
+         * The method handler, similar to {@link MethodChannel.MethodCallHandler#onMethodCall(MethodCall, MethodChannel.Result)}.
          *
          * @param method A {@link MethodCall}.
          * @param result A {@link MethodChannel.Result} used for submitting the result of the call.
          * @throws Exception Any exceptions that occurred during the method handling process.
+         * @see MethodChannel.MethodCallHandler#onMethodCall(MethodCall, MethodChannel.Result)
          */
         @UiThread
         void onMethodCall(@NonNull MethodCall method, @NonNull MethodChannel.Result result) throws Exception;

@@ -21,6 +21,7 @@ class ApplicationState {
   static const String IS_PLAYING_KEY = "IS_PLAYING";
   static const String PLAYLIST_ID_KEY = "PLAYLIST_ID";
   static const String REPEAT_KEY = "REPEAT";
+  static const String SHUFFLE_KEY = "SHUFFLE";
 
   /// The application SQLite [Database]
   final Database database;
@@ -52,6 +53,9 @@ class ApplicationState {
   /// See also: https://developer.android.com/reference/android/media/MediaPlayer#isLooping()
   bool repeat = false;
 
+  /// Whether the shuffle mode is currently on
+  bool shuffle = false;
+
   /// The current position (in milliseconds) of [currentTrack]. This value shouldn't be rely on when no track is playing.
   ///
   /// This should be the same as `MediaPlayer.getCurrentPosition()` on the native side.
@@ -82,6 +86,7 @@ class ApplicationState {
             _index = arguments[INDEX_KEY];
             isPlaying = arguments[IS_PLAYING_KEY];
             repeat = arguments[REPEAT_KEY];
+            shuffle = arguments[SHUFFLE_KEY];
             currentPosition = arguments[CURRENT_POSITION_KEY];
             duration = arguments[DURATION_KEY];
             _streamStateEvent.set();
@@ -149,6 +154,9 @@ class ApplicationState {
   ///
   /// See also: https://developer.android.com/reference/android/media/MediaPlayer#setLooping(boolean)
   Future<void> toggleRepeat() => _platform.invokeMapMethod("toggleRepeat");
+
+  /// Toggle the shuffle mode of the player
+  Future<void> toggleShuffle() => _platform.invokeMapMethod("toggleShuffle");
 
   /// Update the native player's metadata
   Future<void> update({Playlist? playlist, int? index}) async {

@@ -54,7 +54,11 @@ public class MediaPlayerService extends Service {
     @Nullable
     private Notification.Builder notificationBuilder;
 
-    private final MediaPlayerImpl player = MediaPlayerImpl.create();
+    @Nullable
+    private MediaPlayerImpl player;
+
+    @NonNull
+    private final NotificationUpdateReceiver receiver = new NotificationUpdateReceiver();
 
     @ColorInt
     private static int getDominantColor(@NonNull Bitmap bitmap) {
@@ -94,9 +98,6 @@ public class MediaPlayerService extends Service {
         return drawableToBitmap(drawable);
     }
 
-    @NonNull
-    private final NotificationUpdateReceiver receiver = new NotificationUpdateReceiver();
-
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -105,8 +106,7 @@ public class MediaPlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Context context = getApplicationContext();
-        player.setContext(context);
+        player = MediaPlayerImpl.create(getApplicationContext());
         receiver.register();
         displayNotification();
         return super.onStartCommand(intent, flags, startId);
@@ -114,17 +114,12 @@ public class MediaPlayerService extends Service {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
-
-        Context context = getApplicationContext();
         receiver.unregister();
-        if (player.getContext() == context) {
-            player.setContext(null);
-        }
+        super.onDestroy();
     }
 
     private void displayNotification() {
-        if (player.currentTrack != null) {
+        if (player != null && player.currentTrack != null) {
             displayNotification(player.currentTrack);
         }
     }

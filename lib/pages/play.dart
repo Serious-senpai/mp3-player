@@ -95,6 +95,15 @@ class _PlaylistsPageState extends State<PlayPage> with PageStateWithDrawer<PlayP
                           ),
                           Expanded(
                             child: IconButton(
+                              onPressed: state.toggleShuffle,
+                              icon: Icon(
+                                Icons.shuffle_outlined,
+                                color: state.shuffle ? Colors.green : null,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: IconButton(
                               onPressed: state.stop,
                               icon: const Icon(Icons.stop_outlined),
                             ),

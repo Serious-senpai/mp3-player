@@ -13,6 +13,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -22,7 +23,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class MediaPlayerImpl extends MediaPlayer {
     @Nullable
-    // @SuppressLint("StaticFieldLeak")
     private static MediaPlayerImpl instance;
     public static final String UPDATE_NOTIFICATION_ACTION = "com.haruka.mp3_player.UPDATE_NOTIFICATION_ACTION";
     public static final String UPDATE_STATE_METHOD = "com.haruka.mp3_player.UPDATE_STATE";
@@ -38,6 +38,7 @@ public class MediaPlayerImpl extends MediaPlayer {
     public static final String IS_PLAYING_KEY = "IS_PLAYING";
     public static final String PLAYLIST_ID_KEY = "PLAYLIST_ID";
     public static final String REPEAT_KEY = "REPEAT";
+    public static final String SHUFFLE_KEY = "SHUFFLE";
 
     /**
      * The current playing track, if any.
@@ -47,15 +48,15 @@ public class MediaPlayerImpl extends MediaPlayer {
 
     @NonNull
     private final ArrayList<TrackMetadata> tracks = new ArrayList<>(0);
-    @Nullable
-    private Context context;
+    private final Random rng = new Random();
     private int playlistId = -1;
     private int index = -1;
     private boolean mayResume = false;
+    private boolean shuffle = false;
     @NonNull
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
-    private MediaPlayerImpl() {
+    private MediaPlayerImpl(@Nullable Context context) {
         super();
 
         setAudioStreamType(AudioManager.STREAM_MUSIC);
@@ -67,12 +68,16 @@ public class MediaPlayerImpl extends MediaPlayer {
 
                     while (true) {
                         try {
-                            index++;
-                            if (index == tracks.size()) {
-                                index = 0;
+                            if (shuffle) {
+                                index = rng.nextInt(tracks.size());
+                            } else {
+                                index++;
+                                if (index == tracks.size()) {
+                                    index = 0;
+                                }
                             }
 
-                            play();
+                            play(context);
                             break;
                         } catch (IOException error) {
                             error.printStackTrace();
@@ -128,38 +133,19 @@ public class MediaPlayerImpl extends MediaPlayer {
                 }
         );
 
-        executor.scheduleWithFixedDelay(this::sendState, 0, 300, TimeUnit.MILLISECONDS);
+        executor.scheduleWithFixedDelay(() -> sendState(context), 0, 300, TimeUnit.MILLISECONDS);
     }
 
     /**
      * Get the singleton instance of {@link MediaPlayerImpl}, generate one if necessary.
      *
+     * @param context The application context to send state via broadcast.
      * @return The singleton instance of {@link MediaPlayerImpl}
      */
     @NonNull
-    public synchronized static MediaPlayerImpl create() {
-        if (instance == null) instance = new MediaPlayerImpl();
+    public synchronized static MediaPlayerImpl create(@Nullable Context context) {
+        if (instance == null) instance = new MediaPlayerImpl(context);
         return instance;
-    }
-
-    /**
-     * Get the internal {@link Context}, which is responsible for sending states and events
-     * for {@link android.content.BroadcastReceiver} to receive.
-     *
-     * @return The internal {@link Context}, if any.
-     */
-    @Nullable
-    public synchronized Context getContext() {
-        return context;
-    }
-
-    /**
-     * Set the internal {@link Context}, or clear it to null.
-     *
-     * @param newContext The new {@link Context} value.
-     */
-    public synchronized void setContext(@Nullable Context newContext) {
-        context = newContext;
     }
 
     /**
@@ -206,7 +192,7 @@ public class MediaPlayerImpl extends MediaPlayer {
         index = updateIndex;
     }
 
-    private synchronized void sendState() {
+    private synchronized void sendState(@Nullable Context context) {
         if (context != null) {
             Intent intent = new Intent(UPDATE_STATE_METHOD);
             intent.putExtra(INDEX_KEY, index);
@@ -236,11 +222,13 @@ public class MediaPlayerImpl extends MediaPlayer {
                 intent.putExtra(REPEAT_KEY, false);
             }
 
+            intent.putExtra(SHUFFLE_KEY, shuffle);
+
             context.sendBroadcast(intent);
         }
     }
 
-    private synchronized void updateTrack(@Nullable TrackMetadata track) {
+    private synchronized void updateTrack(@Nullable TrackMetadata track, @Nullable Context context) {
         currentTrack = track;
         if (context != null) {
             context.sendBroadcast(new Intent(UPDATE_NOTIFICATION_ACTION));
@@ -250,74 +238,102 @@ public class MediaPlayerImpl extends MediaPlayer {
     /**
      * Start playing at the given index of the given playlist.
      *
+     * @param context The application context to send state via broadcast.
      * @throws IOException           Exception when reading data source.
      * @throws IllegalStateException This should never happens.
      */
-    public synchronized void play() throws IOException, IllegalStateException {
+    public synchronized void play(@Nullable Context context) throws IOException, IllegalStateException {
         reset();
 
         TrackMetadata track = tracks.get(index);
         String path = track.uri;
         setDataSource(path);
-        updateTrack(track);
+        updateTrack(track, context);
 
         prepareAsync();
     }
 
     /**
-     * Pause the playing audio.
-     *
      * @throws IllegalStateException The player is in an invalid state.
+     * @deprecated Use {@link #pause(Context)} instead
      */
     @Override
+    @Deprecated
     public synchronized void pause() throws IllegalStateException {
+        pause(null);
+    }
+
+    /**
+     * Pause the playing audio.
+     *
+     * @param context The application context to send state via broadcast.
+     * @throws IllegalStateException The player is in an invalid state.
+     */
+    public synchronized void pause(@Nullable Context context) throws IllegalStateException {
         if (isPlaying()) {
             super.pause();
             mayResume = true;
-            sendState();
+            sendState(context);
         }
     }
 
     /**
      * Resume the playing audio.
      *
+     * @param context The application context to send state via broadcast.
      * @throws IllegalStateException The player is in an invalid state.
      */
-    public synchronized void resume() throws IllegalStateException {
+    public synchronized void resume(@Nullable Context context) throws IllegalStateException {
         if (mayResume) {
             mayResume = false;
             start();
-            sendState();
+            sendState(context);
         }
+    }
+
+    /**
+     * @param milliseconds the offset in milliseconds from the start to seek to
+     * @throws IllegalStateException The player is in an invalid state.
+     * @deprecated Use {@link #seekTo(int, Context)} instead.
+     */
+    @Override
+    @Deprecated
+    public synchronized void seekTo(int milliseconds) throws IllegalStateException {
+        seekTo(milliseconds, null);
     }
 
     /**
      * Seek to the specified position.
      *
      * @param milliseconds The offset in milliseconds from the start to seek to.
+     * @param context      The application context to send state via broadcast.
      * @throws IllegalStateException The player is in an invalid state.
      */
-    @Override
-    public synchronized void seekTo(int milliseconds) throws IllegalStateException {
+    public synchronized void seekTo(int milliseconds, @Nullable Context context) throws IllegalStateException {
         super.seekTo(milliseconds);
-        sendState();
+        sendState(context);
     }
 
     /**
      * Skip to the next track in the given playlist.
      *
+     * @param context The application context to send state via broadcast.
      * @throws IllegalStateException The player is in an invalid state.
      */
-    public synchronized void next() throws IllegalStateException {
+    public synchronized void next(@Nullable Context context) throws IllegalStateException {
         super.stop();
         while (true) {
             try {
-                index++;
-                if (index == tracks.size()) {
-                    index = 0;
+                if (shuffle) {
+                    index = rng.nextInt(tracks.size());
+                } else {
+                    index++;
+                    if (index == tracks.size()) {
+                        index = 0;
+                    }
                 }
 
-                play();
+                play(context);
                 return;
             } catch (IOException error) {
                 error.printStackTrace();
@@ -328,9 +344,10 @@ public class MediaPlayerImpl extends MediaPlayer {
     /**
      * Skip to the previous track in the given playlist.
      *
+     * @param context The application context to send state via broadcast.
      * @throws IllegalStateException The player is in an invalid state.
      */
-    public synchronized void previous() throws IllegalStateException {
+    public synchronized void previous(@Nullable Context context) throws IllegalStateException {
         super.stop();
         while (true) {
             try {
@@ -339,7 +356,7 @@ public class MediaPlayerImpl extends MediaPlayer {
                     index = tracks.size() - 1;
                 }
 
-                play();
+                play(context);
                 return;
             } catch (IOException error) {
                 error.printStackTrace();
@@ -347,28 +364,54 @@ public class MediaPlayerImpl extends MediaPlayer {
         }
     }
 
+    /**
+     * @throws IllegalStateException The player is in an invalid state.
+     * @deprecated Use {@link #stop(Context)} instead.
+     */
     @Override
+    @Deprecated
     public synchronized void stop() throws IllegalStateException {
+        stop(null);
+    }
+
+    /**
+     * Stop the audio playback.
+     *
+     * @param context The application context to send state via broadcast.
+     * @throws IllegalStateException The player is in an invalid state.
+     */
+    public synchronized void stop(@Nullable Context context) throws IllegalStateException {
         super.stop();
         tracks.clear();
         playlistId = index = -1;
         mayResume = false;
-        updateTrack(null);
-        sendState();
+        updateTrack(null, context);
+        sendState(context);
     }
 
     /**
      * Toggle the REPEAT mode.
+     *
+     * @param context The application context to send state via broadcast.
      */
-    public void toggleRepeat() {
+    public void toggleRepeat(@Nullable Context context) {
         setLooping(!isLooping());
-        sendState();
+        sendState(context);
+    }
+
+    /**
+     * Toggle the SHUFFLE mode.
+     *
+     * @param context The application context to send state via broadcast.
+     */
+    public void toggleShuffle(@Nullable Context context) {
+        shuffle = !shuffle;
+        sendState(context);
     }
 
     @Override
     public void release() {
         super.release();
         executor.shutdown();
-        context = null;
     }
 }

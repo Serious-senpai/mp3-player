@@ -18,6 +18,9 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.JSONMethodCodec;
 import io.flutter.plugin.common.MethodChannel;
 
+/**
+ * A {@link FlutterPlugin} that handles audio playback requests.
+ */
 public class MediaPlayerHandler implements FlutterPlugin {
     private class PlayerStateReceiver extends BroadcastReceiver {
         @Override
@@ -32,6 +35,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
                         data.put(MediaPlayerImpl.IS_PLAYING_KEY, intent.getBooleanExtra(MediaPlayerImpl.IS_PLAYING_KEY, false));
                         data.put(MediaPlayerImpl.PLAYLIST_ID_KEY, intent.getIntExtra(MediaPlayerImpl.PLAYLIST_ID_KEY, -1));
                         data.put(MediaPlayerImpl.REPEAT_KEY, intent.getBooleanExtra(MediaPlayerImpl.REPEAT_KEY, false));
+                        data.put(MediaPlayerImpl.SHUFFLE_KEY, intent.getBooleanExtra(MediaPlayerImpl.SHUFFLE_KEY, false));
 
                         channel.invokeMethod(MediaPlayerImpl.UPDATE_STATE_METHOD, data);
                     }
@@ -98,7 +102,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
     @NonNull
     private final FlutterActivity activity;
     @NonNull
-    private final MediaPlayerImpl player = MediaPlayerImpl.create();
+    private final MediaPlayerImpl player;
     @NonNull
     private final PlayerStateReceiver receiver = new PlayerStateReceiver();
 
@@ -109,13 +113,13 @@ public class MediaPlayerHandler implements FlutterPlugin {
      */
     public MediaPlayerHandler(@NonNull FlutterActivity flutterActivity) {
         activity = flutterActivity;
+        player = MediaPlayerImpl.create(flutterActivity.getContext());
     }
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPlugin.FlutterPluginBinding binding) {
         Context context = binding.getApplicationContext();
         receiver.register(context);
-        player.setContext(context);
         channel = new MethodChannel(binding.getBinaryMessenger(), "com.haruka.mp3_player/player", JSONMethodCodec.INSTANCE);
         channel.setMethodCallHandler(
                 new MethodHandlerWrapper(
@@ -135,46 +139,51 @@ public class MediaPlayerHandler implements FlutterPlugin {
                                     assert playIndex != null;
                                     player.setIndex(playIndex);
 
-                                    player.play();
+                                    player.play(context);
                                     activity.startService(serviceIntent);
                                     result.success(null);
                                     break;
 
                                 case "pause":
-                                    player.pause();
+                                    player.pause(context);
                                     result.success(null);
                                     break;
 
                                 case "resume":
-                                    player.resume();
+                                    player.resume(context);
                                     result.success(null);
                                     break;
 
                                 case "seek":
                                     Integer duration = method.argument("duration");
                                     assert duration != null;
-                                    player.seekTo(duration);
+                                    player.seekTo(duration, context);
                                     result.success(null);
                                     break;
 
                                 case "next":
-                                    player.next();
+                                    player.next(context);
                                     result.success(null);
                                     break;
 
                                 case "previous":
-                                    player.previous();
+                                    player.previous(context);
                                     result.success(null);
                                     break;
 
                                 case "stop":
-                                    player.stop();
+                                    player.stop(context);
                                     result.success(null);
                                     context.stopService(serviceIntent);
                                     break;
 
                                 case "toggleRepeat":
-                                    player.toggleRepeat();
+                                    player.toggleRepeat(context);
+                                    result.success(null);
+                                    break;
+
+                                case "toggleShuffle":
+                                    player.toggleShuffle(context);
                                     result.success(null);
                                     break;
 
@@ -210,8 +219,5 @@ public class MediaPlayerHandler implements FlutterPlugin {
     public void onDetachedFromEngine(@NonNull FlutterPlugin.FlutterPluginBinding binding) {
         Context context = binding.getApplicationContext();
         receiver.unregister(context);
-        if (player.getContext() == context) {
-            player.setContext(null);
-        }
     }
 }
