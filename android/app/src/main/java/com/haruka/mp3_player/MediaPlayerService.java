@@ -34,28 +34,80 @@ public class MediaPlayerService extends Service {
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/notification.channel.id";
     private static final String NOTIFICATION_CHANNEL_NAME = "mp3_player/notification.channel.name";
 
-    private class NotificationUpdateReceiver extends BroadcastReceiver {
+    private abstract class NestedReceiver extends BroadcastReceiver {
+        @NonNull
+        protected abstract IntentFilter getIntentFilter();
+
+        protected void register() {
+            registerReceiver(this, getIntentFilter());
+        }
+
+        protected void unregister() {
+            unregisterReceiver(this);
+        }
+    }
+
+    private class NotificationUpdateReceiver extends NestedReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             assert MediaPlayerImpl.UPDATE_NOTIFICATION_ACTION.equals(intent.getAction());
             displayNotification();
         }
 
-        private void register() {
-            IntentFilter intentFilter = new IntentFilter(MediaPlayerImpl.UPDATE_NOTIFICATION_ACTION);
-            registerReceiver(this, intentFilter);
+        @NonNull
+        @Override
+        protected IntentFilter getIntentFilter() {
+            return new IntentFilter(MediaPlayerImpl.UPDATE_NOTIFICATION_ACTION);
+        }
+    }
+
+    private class MediaPlayerReceiver extends NestedReceiver {
+        public static final String NEXT_ACTION = "com.haruka.mp3_player.NEXT";
+        public static final String PAUSE_ACTION = "com.haruka.mp3_player.PAUSE";
+        public static final String PREVIOUS_ACTION = "com.haruka.mp3_player.PREVIOUS";
+        public static final String RESUME_ACTION = "com.haruka.mp3_player.RESUME";
+
+        @Override
+        public void onReceive(Context context, @NonNull Intent intent) {
+            if (player != null) {
+                switch (intent.getAction()) {
+                    case NEXT_ACTION:
+                        player.next(context);
+                        break;
+
+                    case PAUSE_ACTION:
+                        player.pause(context);
+                        break;
+
+                    case PREVIOUS_ACTION:
+                        player.previous(context);
+                        break;
+
+                    case RESUME_ACTION:
+                        player.resume(context);
+                        break;
+                }
+            }
         }
 
-        private void unregister() {
-            unregisterReceiver(this);
+        @NonNull
+        @Override
+        protected IntentFilter getIntentFilter() {
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(NEXT_ACTION);
+            intentFilter.addAction(PAUSE_ACTION);
+            intentFilter.addAction(PREVIOUS_ACTION);
+            intentFilter.addAction(RESUME_ACTION);
+
+            return intentFilter;
         }
     }
 
     @Nullable
-    private Notification.Builder notificationBuilder;
-
-    @Nullable
     private MediaPlayerImpl player;
+
+    @NonNull
+    private final MediaPlayerReceiver mediaPlayerReceiver = new MediaPlayerReceiver();
 
     @NonNull
     private final NotificationUpdateReceiver receiver = new NotificationUpdateReceiver();
@@ -106,7 +158,8 @@ public class MediaPlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        player = MediaPlayerImpl.create(getApplicationContext());
+        player = MediaPlayerImpl.create(getBaseContext());
+        mediaPlayerReceiver.register();
         receiver.register();
         displayNotification();
         return super.onStartCommand(intent, flags, startId);
@@ -114,6 +167,7 @@ public class MediaPlayerService extends Service {
 
     @Override
     public void onDestroy() {
+        mediaPlayerReceiver.unregister();
         receiver.unregister();
         super.onDestroy();
     }
@@ -129,7 +183,7 @@ public class MediaPlayerService extends Service {
             createNotificationChannel();
         }
 
-        Context context = getApplicationContext();
+        // Get thumbnail to display
         @Nullable Bitmap thumbnail = null;
         if (track.thumbnailPath != null) {
             thumbnail = BitmapFactory.decodeFile(track.thumbnailPath);
@@ -141,102 +195,96 @@ public class MediaPlayerService extends Service {
             }
         }
 
-        createNotificationBuilder();
-        assert notificationBuilder != null;
         assert player != null;
-        notificationBuilder.setContentIntent(
-                        PendingIntent.getActivity(
-                                context, 2,
-                                new FlutterActivity.NewEngineIntentBuilder(MainActivity.class)
-                                        .initialRoute("/play")
-                                        .build(context),
+
+        // Construct Notification.MediaStyle
+        Notification.MediaStyle style = new Notification.MediaStyle();
+        style.setShowActionsInCompactView(0, 1, 2);
+        if (player.mediaSession != null) {
+            style.setMediaSession(player.mediaSession.getSessionToken());
+        }
+
+        // Construct the list of Actions in the notification
+        Notification.Action[] actions = {
+                new Notification.Action.Builder(
+                        drawable.ic_media_previous,
+                        "Previous",
+                        PendingIntent.getBroadcast(
+                                getApplicationContext(), 2,
+                                new Intent(MediaPlayerReceiver.PREVIOUS_ACTION),
                                 PendingIntent.FLAG_IMMUTABLE
                         )
-                )
-                .setContentText(track.artist != null ? track.artist : "Unknown artist")
-                .setContentTitle(track.title)
-                .setOnlyAlertOnce(true)
-                .setPriority(Notification.PRIORITY_MAX)
-                .setShowWhen(false)
-                .setStyle(new Notification.MediaStyle())
-                .setVisibility(Notification.VISIBILITY_PUBLIC);
+                ).build(),
+                player.isPlaying() ? new Notification.Action.Builder(
+                        drawable.ic_media_pause,
+                        "Pause",
+                        PendingIntent.getBroadcast(
+                                getApplicationContext(), 2,
+                                new Intent(MediaPlayerReceiver.PAUSE_ACTION),
+                                PendingIntent.FLAG_IMMUTABLE
+                        )
+                ).build() : new Notification.Action.Builder(
+                        drawable.ic_media_play,
+                        "Resume",
+                        PendingIntent.getBroadcast(
+                                getApplicationContext(), 2,
+                                new Intent(MediaPlayerReceiver.RESUME_ACTION),
+                                PendingIntent.FLAG_IMMUTABLE
+                        )
+                ).build(),
+                new Notification.Action.Builder(
+                        drawable.ic_media_next,
+                        "Next",
+                        PendingIntent.getBroadcast(
+                                getApplicationContext(), 2,
+                                new Intent(MediaPlayerReceiver.NEXT_ACTION),
+                                PendingIntent.FLAG_IMMUTABLE
+                        )
+                ).build(),
+        };
+
+        // Construct Notification.Builder
+        Notification.Builder notificationBuilder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
+                new Notification.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
+                        .setColorized(true)
+                : new Notification.Builder(getApplicationContext());
 
         if (thumbnail != null) {
             notificationBuilder.setColor(getDominantColor(thumbnail))
                     .setLargeIcon(thumbnail);
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            notificationBuilder.setActions(actions);
+        } else {
+            for (Notification.Action action : actions) {
+                notificationBuilder.addAction(action);
+            }
+        }
+
+        notificationBuilder.setContentIntent(
+                        PendingIntent.getActivity(
+                                getApplicationContext(), 1,
+                                new FlutterActivity.NewEngineIntentBuilder(MainActivity.class)
+                                        .initialRoute("/play")
+                                        .build(getApplicationContext()),
+                                PendingIntent.FLAG_IMMUTABLE
+                        )
+                )
+                .setContentText(track.artist != null ? track.artist : "Unknown artist")
+                .setContentTitle(track.title)
+                .setOngoing(player.isPlaying())
+                .setOnlyAlertOnce(true)
+                .setPriority(Notification.PRIORITY_MAX)
+                .setShowWhen(false)
+                .setStyle(style)
+                .setVisibility(Notification.VISIBILITY_PUBLIC);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             notificationBuilder.setSmallIcon(drawable.ic_media_play);
         }
 
-        Notification notification = notificationBuilder.build();
-        notification.actions[1] = player.isPlaying() ? new Notification.Action.Builder(
-                drawable.ic_media_pause,
-                "Pause",
-                PendingIntent.getBroadcast(
-                        getApplicationContext(), 1,
-                        new Intent(MediaPlayerImpl.MediaPlayerReceiver.PAUSE_ACTION),
-                        PendingIntent.FLAG_IMMUTABLE
-                )
-        ).build() : new Notification.Action.Builder(
-                drawable.ic_media_play,
-                "Resume",
-                PendingIntent.getBroadcast(
-                        getApplicationContext(), 1,
-                        new Intent(MediaPlayerImpl.MediaPlayerReceiver.RESUME_ACTION),
-                        PendingIntent.FLAG_IMMUTABLE
-                )
-        ).build();
-
-        startForeground(NOTIFICATION_ID, notification);
-    }
-
-    private void createNotificationBuilder() {
-        if (notificationBuilder == null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                notificationBuilder = new Notification.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
-                        .setColorized(true);
-            } else {
-                notificationBuilder = new Notification.Builder(getApplicationContext());
-            }
-
-            notificationBuilder
-                    .addAction(
-                            new Notification.Action.Builder(
-                                    drawable.ic_media_previous,
-                                    "Previous",
-                                    PendingIntent.getBroadcast(
-                                            getApplicationContext(), 1,
-                                            new Intent(MediaPlayerImpl.MediaPlayerReceiver.PREVIOUS_ACTION),
-                                            PendingIntent.FLAG_IMMUTABLE
-                                    )
-                            ).build()
-                    )
-                    .addAction(
-                            new Notification.Action.Builder(
-                                    drawable.ic_media_play,
-                                    "Resume",
-                                    PendingIntent.getBroadcast(
-                                            getApplicationContext(), 1,
-                                            new Intent(MediaPlayerImpl.MediaPlayerReceiver.RESUME_ACTION),
-                                            PendingIntent.FLAG_IMMUTABLE
-                                    )
-                            ).build()
-                    ).addAction(
-                            new Notification.Action.Builder(
-                                    drawable.ic_media_next,
-                                    "Next",
-                                    PendingIntent.getBroadcast(
-                                            getApplicationContext(), 1,
-                                            new Intent(MediaPlayerImpl.MediaPlayerReceiver.NEXT_ACTION),
-                                            PendingIntent.FLAG_IMMUTABLE
-                                    )
-                            ).build()
-                    )
-
-            ;
-        }
+        startForeground(NOTIFICATION_ID, notificationBuilder.build());
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -244,10 +292,9 @@ public class MediaPlayerService extends Service {
         NotificationChannel notificationChannel = new NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
                 NOTIFICATION_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_LOW
         );
         notificationChannel.setDescription("MP3 Player Notification channel");
-        notificationChannel.setImportance(NotificationManager.IMPORTANCE_LOW);
         notificationChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         notificationChannel.setShowBadge(false);
 

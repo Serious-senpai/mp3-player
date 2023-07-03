@@ -1,5 +1,6 @@
 package com.haruka.mp3_player;
 
+import android.media.MediaMetadata;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -61,5 +62,13 @@ public class TrackMetadata {
                 data.getString("uri"),
                 data.isNull("thumbnailPath") ? null : data.getString("thumbnailPath")
         );
+    }
+
+    @NonNull
+    public MediaMetadata toMediaMetadata(){
+        return new MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
+                .build();
     }
 }
