@@ -1,7 +1,9 @@
 package com.haruka.mp3_player;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import androidx.annotation.NonNull;
@@ -40,6 +42,51 @@ public class MediaPlayerImpl extends MediaPlayer {
     public static final String REPEAT_KEY = "REPEAT";
     public static final String SHUFFLE_KEY = "SHUFFLE";
 
+    public class MediaPlayerReceiver extends BroadcastReceiver {
+        public static final String NEXT_ACTION = "com.haruka.mp3_player.NEXT_ACTION";
+        public static final String PAUSE_ACTION = "com.haruka.mp3_player.PAUSE";
+        public static final String PREVIOUS_ACTION = "com.haruka.mp3_player.PREVIOUS";
+        public static final String RESUME_ACTION = "com.haruka.mp3_player.RESUME";
+        private final ArrayList<Context> registered = new ArrayList<>();
+
+        @Override
+        public void onReceive(Context context, @NonNull Intent intent) {
+            switch (intent.getAction()) {
+                case NEXT_ACTION:
+                    next(context);
+                    break;
+
+                case PAUSE_ACTION:
+                    pause(context);
+                    break;
+
+                case PREVIOUS_ACTION:
+                    previous(context);
+                    break;
+
+                case RESUME_ACTION:
+                    resume(context);
+                    break;
+            }
+        }
+
+        private void register(@NonNull Context context) {
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(NEXT_ACTION);
+            intentFilter.addAction(PAUSE_ACTION);
+            intentFilter.addAction(PREVIOUS_ACTION);
+            intentFilter.addAction(RESUME_ACTION);
+            context.registerReceiver(this, intentFilter);
+            registered.add(context);
+        }
+
+        private void unregister() {
+            for (Context context : registered) {
+                context.unregisterReceiver(this);
+            }
+        }
+    }
+
     /**
      * The current playing track, if any.
      */
@@ -48,7 +95,10 @@ public class MediaPlayerImpl extends MediaPlayer {
 
     @NonNull
     private final ArrayList<TrackMetadata> tracks = new ArrayList<>(0);
+    @NonNull
     private final Random rng = new Random();
+    @NonNull
+    private final MediaPlayerReceiver mediaPlayerReceiver = new MediaPlayerReceiver();
     private int playlistId = -1;
     private int index = -1;
     private boolean mayResume = false;
@@ -58,6 +108,10 @@ public class MediaPlayerImpl extends MediaPlayer {
 
     private MediaPlayerImpl(@Nullable Context context) {
         super();
+
+        if (context != null) {
+            mediaPlayerReceiver.register(context);
+        }
 
         setAudioStreamType(AudioManager.STREAM_MUSIC);
         setOnCompletionListener(
@@ -122,6 +176,7 @@ public class MediaPlayerImpl extends MediaPlayer {
 
                     if (context != null) {
                         context.sendBroadcast(new Intent(ON_PREPARED_METHOD));
+                        context.sendBroadcast(new Intent(UPDATE_NOTIFICATION_ACTION));
                     }
                 }
         );
@@ -274,6 +329,10 @@ public class MediaPlayerImpl extends MediaPlayer {
             super.pause();
             mayResume = true;
             sendState(context);
+
+            if (context != null) {
+                context.sendBroadcast(new Intent(UPDATE_NOTIFICATION_ACTION));
+            }
         }
     }
 
@@ -288,6 +347,10 @@ public class MediaPlayerImpl extends MediaPlayer {
             mayResume = false;
             start();
             sendState(context);
+
+            if (context != null) {
+                context.sendBroadcast(new Intent(UPDATE_NOTIFICATION_ACTION));
+            }
         }
     }
 
@@ -413,5 +476,6 @@ public class MediaPlayerImpl extends MediaPlayer {
     public void release() {
         super.release();
         executor.shutdown();
+        mediaPlayerReceiver.unregister();
     }
 }

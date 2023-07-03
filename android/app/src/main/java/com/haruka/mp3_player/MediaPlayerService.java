@@ -143,9 +143,10 @@ public class MediaPlayerService extends Service {
 
         createNotificationBuilder();
         assert notificationBuilder != null;
+        assert player != null;
         notificationBuilder.setContentIntent(
                         PendingIntent.getActivity(
-                                context, NOTIFICATION_ID,
+                                context, 2,
                                 new FlutterActivity.NewEngineIntentBuilder(MainActivity.class)
                                         .initialRoute("/play")
                                         .build(context),
@@ -166,10 +167,28 @@ public class MediaPlayerService extends Service {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            notificationBuilder.setSmallIcon(drawable.stat_sys_headset);
+            notificationBuilder.setSmallIcon(drawable.ic_media_play);
         }
 
         Notification notification = notificationBuilder.build();
+        notification.actions[1] = player.isPlaying() ? new Notification.Action.Builder(
+                drawable.ic_media_pause,
+                "Pause",
+                PendingIntent.getBroadcast(
+                        getApplicationContext(), 1,
+                        new Intent(MediaPlayerImpl.MediaPlayerReceiver.PAUSE_ACTION),
+                        PendingIntent.FLAG_IMMUTABLE
+                )
+        ).build() : new Notification.Action.Builder(
+                drawable.ic_media_play,
+                "Resume",
+                PendingIntent.getBroadcast(
+                        getApplicationContext(), 1,
+                        new Intent(MediaPlayerImpl.MediaPlayerReceiver.RESUME_ACTION),
+                        PendingIntent.FLAG_IMMUTABLE
+                )
+        ).build();
+
         startForeground(NOTIFICATION_ID, notification);
     }
 
@@ -181,6 +200,42 @@ public class MediaPlayerService extends Service {
             } else {
                 notificationBuilder = new Notification.Builder(getApplicationContext());
             }
+
+            notificationBuilder
+                    .addAction(
+                            new Notification.Action.Builder(
+                                    drawable.ic_media_previous,
+                                    "Previous",
+                                    PendingIntent.getBroadcast(
+                                            getApplicationContext(), 1,
+                                            new Intent(MediaPlayerImpl.MediaPlayerReceiver.PREVIOUS_ACTION),
+                                            PendingIntent.FLAG_IMMUTABLE
+                                    )
+                            ).build()
+                    )
+                    .addAction(
+                            new Notification.Action.Builder(
+                                    drawable.ic_media_play,
+                                    "Resume",
+                                    PendingIntent.getBroadcast(
+                                            getApplicationContext(), 1,
+                                            new Intent(MediaPlayerImpl.MediaPlayerReceiver.RESUME_ACTION),
+                                            PendingIntent.FLAG_IMMUTABLE
+                                    )
+                            ).build()
+                    ).addAction(
+                            new Notification.Action.Builder(
+                                    drawable.ic_media_next,
+                                    "Next",
+                                    PendingIntent.getBroadcast(
+                                            getApplicationContext(), 1,
+                                            new Intent(MediaPlayerImpl.MediaPlayerReceiver.NEXT_ACTION),
+                                            PendingIntent.FLAG_IMMUTABLE
+                                    )
+                            ).build()
+                    )
+
+            ;
         }
     }
 
