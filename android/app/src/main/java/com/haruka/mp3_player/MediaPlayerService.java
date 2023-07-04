@@ -32,7 +32,7 @@ import io.flutter.embedding.android.FlutterActivity;
 public class MediaPlayerService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/notification.channel.id";
-    private static final String NOTIFICATION_CHANNEL_NAME = "mp3_player/notification.channel.name";
+    private static final String NOTIFICATION_CHANNEL_NAME = "Notification Channel";
 
     private abstract class NestedReceiver extends BroadcastReceiver {
         @NonNull
@@ -262,6 +262,14 @@ public class MediaPlayerService extends Service {
             }
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            notificationBuilder.setSmallIcon(drawable.ic_media_play);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            notificationBuilder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE);
+        }
+
         notificationBuilder.setContentIntent(
                         PendingIntent.getActivity(
                                 getApplicationContext(), 1,
@@ -280,11 +288,9 @@ public class MediaPlayerService extends Service {
                 .setStyle(style)
                 .setVisibility(Notification.VISIBILITY_PUBLIC);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            notificationBuilder.setSmallIcon(drawable.ic_media_play);
-        }
-
-        startForeground(NOTIFICATION_ID, notificationBuilder.build());
+        Notification notification = notificationBuilder.build();
+        notification.flags = Notification.FLAG_FOREGROUND_SERVICE | Notification.FLAG_NO_CLEAR;
+        startForeground(NOTIFICATION_ID, notification);
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

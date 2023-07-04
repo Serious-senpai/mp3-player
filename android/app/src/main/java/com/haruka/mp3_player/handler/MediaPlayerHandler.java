@@ -174,7 +174,7 @@ public class MediaPlayerHandler implements FlutterPlugin {
                                 case "stop":
                                     player.stop(context);
                                     result.success(null);
-                                    context.stopService(serviceIntent);
+                                    activity.stopService(serviceIntent);
                                     break;
 
                                 case "toggleRepeat":
