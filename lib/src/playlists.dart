@@ -4,25 +4,21 @@ import "package:async_locks/async_locks.dart";
 
 import "state.dart";
 import "tracks.dart";
+import "utils.dart";
+
+/// The state of [Playlist.playlists]
+enum PlaylistsFetchingState {
+  /// Data is ready to be displayed
+  READY,
+
+  /// Data is being fetched
+  FETCHING,
+}
 
 /// Represents a playlist, which contains a list of playable [Track]s
 class Playlist {
   /// Mapping of IDs to their corresponding [Playlist]s
-  static final playlists = <int, Playlist>{};
-  static final _playlistsLock = Lock();
-  static final _streamEvent = Event();
-  static Stream<List<Playlist>>? _playlistsStream;
-
-  /// A [Stream] that broadcast data about the state of all [Playlist]s
-  static Stream<List<Playlist>> get playlistsStream => _playlistsStream ??= _playlistsStreamImpl().asBroadcastStream();
-
-  static Stream<List<Playlist>> _playlistsStreamImpl() async* {
-    while (true) {
-      yield List<Playlist>.from(playlists.values);
-      await _streamEvent.wait();
-      _streamEvent.clear();
-    }
-  }
+  static final playlists = MapStream<int, Playlist>();
 
   /// The playlist unique ID
   final int id;
@@ -132,8 +128,6 @@ class Playlist {
       where: "id = ?",
       whereArgs: [id],
     );
-
-    _streamEvent.set();
   }
 
   /// Delete this playlist
@@ -148,9 +142,9 @@ class Playlist {
     if (isPlaying) {
       await _state.stop();
     }
-
-    _streamEvent.set();
   }
+
+  static final _playlistsLock = Lock();
 
   /// Construct a [Playlist] from a database row
   static Future<Playlist> fromRow(Map<String, dynamic> row, {required ApplicationState state}) async {
@@ -172,7 +166,6 @@ class Playlist {
       },
     );
 
-    _streamEvent.set();
     return result;
   }
 
@@ -201,15 +194,20 @@ class Playlist {
     return await fromId(id, state: state);
   }
 
+  /// The current status of [playlists] fetched via [fetchAll]
+  static final ValueStream<PlaylistsFetchingState> fetchingState = ValueStream<PlaylistsFetchingState>(PlaylistsFetchingState.READY);
+
   /// Fetch all [Playlist]s in the database
   static Future<List<Playlist>> fetchAll({required ApplicationState state}) async {
+    fetchingState.value = PlaylistsFetchingState.FETCHING;
+
     var rows = await state.database.query("playlists");
     var results = <Playlist>[];
     for (var row in rows) {
       results.add(await fromRow(row, state: state));
     }
 
-    _streamEvent.set();
+    fetchingState.value = PlaylistsFetchingState.READY;
     return results;
   }
 

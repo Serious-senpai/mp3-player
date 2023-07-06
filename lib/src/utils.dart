@@ -1,5 +1,6 @@
 import "dart:io";
 
+import "package:async_locks/async_locks.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:path/path.dart";
@@ -14,8 +15,91 @@ final _audioMimeType = {
   "application/ogg",
 };
 
+abstract class _StreamWrapper<T> {
+  abstract final T _value; // may not be final
+  final Event _update = Event();
+
+  Stream<T>? _stream;
+  Stream<T> get stream => _stream ??= _createValueStream().asBroadcastStream();
+
+  Stream<T> _createValueStream() async* {
+    while (true) {
+      yield _value;
+      _update.clear();
+      await _update.wait();
+    }
+  }
+}
+
+class ValueStream<T> extends _StreamWrapper<T> {
+  @override
+  T _value;
+
+  ValueStream(T initial) : _value = initial;
+
+  T get value => _value;
+  set value(T newValue) {
+    _value = newValue;
+    _update.set();
+  }
+}
+
+class MapStream<K, V> extends _StreamWrapper<Map<K, V>> {
+  @override
+  final Map<K, V> _value = <K, V>{};
+
+  MapStream([Map<K, V>? initial]) {
+    if (initial != null) _value.addAll(initial);
+  }
+
+  Iterable<K> get keys => _value.keys;
+  Iterable<V> get values => _value.values;
+
+  void clear() {
+    _value.clear();
+    _update.set();
+  }
+
+  V? remove(K key) {
+    var value = _value.remove(key);
+    _update.set();
+
+    return value;
+  }
+
+  V? operator [](K key) => _value[key];
+  void operator []=(K key, V value) {
+    _value[key] = value;
+    _update.set();
+  }
+}
+
 /// A square [SizedBox] of size 10 * 10
 const seperator = SizedBox.square(dimension: 10.0);
+
+/// Display a loading indicator above [content]
+Widget loadingIndicator({String? content, double size = 60}) {
+  var sizedBox = SizedBox(
+    width: size,
+    height: size,
+    child: const CircularProgressIndicator(),
+  );
+
+  var children = <Widget>[sizedBox];
+  if (content != null) {
+    children.addAll(
+      [
+        seperator,
+        Text(content),
+      ],
+    );
+  }
+
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: children,
+  );
+}
 
 /// Construct an [Image] from a give file [path].
 ///
