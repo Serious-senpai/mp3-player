@@ -35,7 +35,7 @@ dependencies:
   audio_video_progress_bar: 1.0.1
   filesystem_picker: 3.1.0
   path: 1.8.2
-  permission_handler: 10.4.2
+  permission_handler: 10.4.5
   sqflite: 2.2.8+4
 
   # The following adds the Cupertino Icons font to your application.
