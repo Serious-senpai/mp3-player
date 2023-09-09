@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 
 import "pages/play.dart";
 import "pages/playlists.dart";
+import "pages/youtube.dart";
 import "src/state.dart";
 
 /// Application entry point
@@ -42,6 +43,7 @@ class MP3Player extends StatelessWidget {
       routes: {
         "/playlists": (context) => PlaylistsPage(state: state),
         "/play": (context) => PlayPage(state: state),
+        "/youtube": (context) => YouTubePage(state: state),
       },
     );
   }

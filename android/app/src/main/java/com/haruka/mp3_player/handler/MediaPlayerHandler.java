@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.haruka.mp3_player.MediaPlayerImpl;
 import com.haruka.mp3_player.MediaPlayerService;
@@ -15,13 +14,13 @@ import org.json.JSONArray;
 import java.util.HashMap;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
-import io.flutter.plugin.common.JSONMethodCodec;
+import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
 /**
  * A {@link FlutterPlugin} that handles audio playback requests.
  */
-public class MediaPlayerHandler implements FlutterPlugin {
+public class MediaPlayerHandler extends AbstractMethodChannelPlugin {
     private class PlayerStateReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
@@ -97,10 +96,6 @@ public class MediaPlayerHandler implements FlutterPlugin {
         }
     }
 
-    @Nullable
-    private MethodChannel channel;
-    @NonNull
-    private final FlutterActivity activity;
     @NonNull
     private final MediaPlayerImpl player;
     @NonNull
@@ -112,107 +107,103 @@ public class MediaPlayerHandler implements FlutterPlugin {
      * @param flutterActivity The {@link FlutterActivity} that registers this plugin.
      */
     public MediaPlayerHandler(@NonNull FlutterActivity flutterActivity) {
-        activity = flutterActivity;
+        super(flutterActivity, "com.haruka.mp3_player/player");
         player = MediaPlayerImpl.create(flutterActivity.getContext());
     }
 
     @Override
-    public void onAttachedToEngine(@NonNull FlutterPlugin.FlutterPluginBinding binding) {
+    protected void handler(@NonNull MethodCall method, @NonNull MethodChannel.Result result, @NonNull FlutterPluginBinding binding) throws Exception {
         Context context = binding.getApplicationContext();
-        receiver.register(context);
-        channel = new MethodChannel(binding.getBinaryMessenger(), "com.haruka.mp3_player/player", JSONMethodCodec.INSTANCE);
-        channel.setMethodCallHandler(
-                new MethodHandlerWrapper(
-                        (method, result) -> {
-                            Intent serviceIntent = new Intent(context, MediaPlayerService.class);
-                            switch (method.method) {
-                                case "play":
-                                    JSONArray playTracks = method.argument("tracks");
-                                    assert playTracks != null;
-                                    player.setTracks(playTracks);
+        Intent serviceIntent = new Intent(context, MediaPlayerService.class);
+        switch (method.method) {
+            case "play":
+                JSONArray playTracks = method.argument("tracks");
+                assert playTracks != null;
+                player.setTracks(playTracks);
 
-                                    Integer playPlaylistId = method.argument("playlistId");
-                                    assert playPlaylistId != null;
-                                    player.setPlaylistId(playPlaylistId);
+                Integer playPlaylistId = method.argument("playlistId");
+                assert playPlaylistId != null;
+                player.setPlaylistId(playPlaylistId);
 
-                                    Integer playIndex = method.argument("index");
-                                    assert playIndex != null;
-                                    player.setIndex(playIndex);
+                Integer playIndex = method.argument("index");
+                assert playIndex != null;
+                player.setIndex(playIndex);
 
-                                    player.play(context);
-                                    activity.startService(serviceIntent);
-                                    result.success(null);
-                                    break;
+                player.play(context);
+                flutterActivity.startService(serviceIntent);
+                result.success(null);
+                break;
 
-                                case "pause":
-                                    player.pause(context);
-                                    result.success(null);
-                                    break;
+            case "pause":
+                player.pause(context);
+                result.success(null);
+                break;
 
-                                case "resume":
-                                    player.resume(context);
-                                    result.success(null);
-                                    break;
+            case "resume":
+                player.resume(context);
+                result.success(null);
+                break;
 
-                                case "seek":
-                                    Integer duration = method.argument("duration");
-                                    assert duration != null;
-                                    player.seekTo(duration, context);
-                                    result.success(null);
-                                    break;
+            case "seek":
+                Integer duration = method.argument("duration");
+                assert duration != null;
+                player.seekTo(duration, context);
+                result.success(null);
+                break;
 
-                                case "next":
-                                    player.next(context);
-                                    result.success(null);
-                                    break;
+            case "next":
+                player.next(context);
+                result.success(null);
+                break;
 
-                                case "previous":
-                                    player.previous(context);
-                                    result.success(null);
-                                    break;
+            case "previous":
+                player.previous(context);
+                result.success(null);
+                break;
 
-                                case "stop":
-                                    player.stop(context);
-                                    result.success(null);
-                                    activity.stopService(serviceIntent);
-                                    break;
+            case "stop":
+                flutterActivity.stopService(serviceIntent);
+                result.success(null);
+                break;
 
-                                case "toggleRepeat":
-                                    player.toggleRepeat(context);
-                                    result.success(null);
-                                    break;
+            case "toggleRepeat":
+                player.toggleRepeat(context);
+                result.success(null);
+                break;
 
-                                case "toggleShuffle":
-                                    player.toggleShuffle(context);
-                                    result.success(null);
-                                    break;
+            case "toggleShuffle":
+                player.toggleShuffle(context);
+                result.success(null);
+                break;
 
-                                case "update":
-                                    // Update these attributes while not playing doesn't affect anything
-                                    JSONArray updateTracks = method.argument("tracks");
-                                    if (updateTracks != null) {
-                                        player.setTracks(updateTracks);
-                                    }
+            case "update":
+                // Update these attributes while not playing doesn't affect anything
+                JSONArray updateTracks = method.argument("tracks");
+                if (updateTracks != null) {
+                    player.setTracks(updateTracks);
+                }
 
-                                    Integer updatePlaylistId = method.argument("playlistId");
-                                    if (updatePlaylistId != null) {
-                                        player.setPlaylistId(updatePlaylistId);
-                                    }
+                Integer updatePlaylistId = method.argument("playlistId");
+                if (updatePlaylistId != null) {
+                    player.setPlaylistId(updatePlaylistId);
+                }
 
-                                    Integer updateIndex = method.argument("index");
-                                    if (updateIndex != null) {
-                                        player.setIndex(updateIndex);
-                                    }
+                Integer updateIndex = method.argument("index");
+                if (updateIndex != null) {
+                    player.setIndex(updateIndex);
+                }
 
-                                    result.success(null);
-                                    break;
+                result.success(null);
+                break;
 
-                                default:
-                                    result.notImplemented();
-                            }
-                        }
-                )
-        );
+            default:
+                result.notImplemented();
+        }
+    }
+
+    @Override
+    protected void whenAttachedToEngine(@NonNull FlutterPlugin.FlutterPluginBinding binding) {
+        receiver.register(binding.getApplicationContext());
     }
 
     @Override

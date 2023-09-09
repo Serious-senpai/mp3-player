@@ -34,7 +34,9 @@ dependencies:
   async_locks: 3.3.2
   audio_video_progress_bar: 1.0.1
   filesystem_picker: 3.1.0
-  path: 1.8.2
+  http: 1.1.0
+  meta: 1.9.1
+  path: 1.8.3
   permission_handler: 10.4.2
   sqflite: 2.2.8+4
 

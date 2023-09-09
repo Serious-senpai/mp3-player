@@ -14,6 +14,9 @@ import "../src/utils.dart";
 
 /// Actions to perform on a track
 enum TrackOption {
+  /// Edit the track's title
+  EDIT_TITLE,
+
   /// Share a track via the system's interface
   SHARE,
 
@@ -41,9 +44,9 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
   }
 
   @override
-  Widget build(BuildContext context) {
+  Scaffold buildScaffold(BuildContext context) {
     Playlist.fetchAll(state: state);
-    var scaffold = Scaffold(
+    return Scaffold(
       key: scaffoldKey,
       appBar: AppBar(
         leading: IconButton(
@@ -171,7 +174,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
 
                         var file = File(pickedPath);
                         if (await file.exists()) {
-                          var track = await Track.fromPath(pickedPath);
+                          var track = await Track.fromPath(pickedPath, state: state);
                           if (track != null) {
                             await playlist.add(track);
                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added a track to playlist!")));
@@ -186,7 +189,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
 
                           Future<void> fromEntity(FileSystemEntity entity) async {
                             if (entity is File) {
-                              var track = await Track.fromPath(entity.path);
+                              var track = await Track.fromPath(entity.path, state: state);
                               if (track != null) {
                                 tracks.add(track);
                               }
@@ -209,6 +212,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                           await playlist.addAll(tracks);
 
                           if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Added ${tracks.length} track(s) to playlist!")));
+                          refresh();
                         }
                       },
                     ),
@@ -216,7 +220,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                       leading: const Icon(Icons.edit_note_outlined),
                       title: const Text("Rename playlist"),
                       onTap: () async {
-                        var controller = TextEditingController();
+                        var controller = TextEditingController(text: playlist.title);
                         var title = await showDialog<String>(
                           context: context,
                           builder: (context) => AlertDialog(
@@ -234,6 +238,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                             ),
                             actions: [
                               TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+                              TextButton(
                                 onPressed: () => Navigator.pop(context, controller.text),
                                 child: const Text("OK"),
                               ),
@@ -246,6 +254,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                             await playlist.rename(title);
 
                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Renamed playlist!")));
+                            refresh();
                           } else {
                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Playlist title cannot be empty!")));
                           }
@@ -277,6 +286,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                         if (option) {
                           await playlist.delete();
                           if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Removed playlist")));
+                          refresh();
                         }
                       },
                     ),
@@ -321,6 +331,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                                   title: Text(track.title, overflow: TextOverflow.ellipsis),
                                   children: [
                                     SimpleDialogOption(
+                                      onPressed: () => Navigator.pop(context, TrackOption.EDIT_TITLE),
+                                      child: const Text("Edit track title"),
+                                    ),
+                                    SimpleDialogOption(
                                       onPressed: () => Navigator.pop(context, TrackOption.SHARE),
                                       child: const Text("Share"),
                                     ),
@@ -333,6 +347,51 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                               );
 
                               switch (option) {
+                                case TrackOption.EDIT_TITLE:
+                                  var controller = TextEditingController(text: track.title);
+                                  if (context.mounted) {
+                                    var title = await showDialog<String>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text("Rename track"),
+                                        content: TextField(
+                                          controller: controller,
+                                          decoration: const InputDecoration.collapsed(hintText: "Track title"),
+                                          keyboardType: TextInputType.text,
+                                          showCursor: true,
+                                          autofocus: true,
+                                          enableSuggestions: false,
+                                          maxLength: 50,
+                                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                                          onSubmitted: (value) => Navigator.pop(context, value),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, controller.text),
+                                            child: const Text("OK"),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (title != null) {
+                                      if (title.isNotEmpty) {
+                                        await track.trackInfo.editTitle(title);
+
+                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Renamed track!")));
+                                        refresh();
+                                      } else {
+                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Track title cannot be empty!")));
+                                      }
+                                    }
+                                  }
+
+                                  break;
+
                                 case TrackOption.SHARE:
                                   await shareFile(track.uri);
                                   break;
@@ -340,6 +399,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                                 case TrackOption.REMOVE:
                                   await playlist.remove(index);
                                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Removed a track from playlist")));
+                                  refresh();
                                   break;
 
                                 default:
@@ -380,14 +440,6 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
           }
         },
       ),
-    );
-
-    return WillPopScope(
-      child: scaffold,
-      onWillPop: () async {
-        openDrawer();
-        return false;
-      },
     );
   }
 }

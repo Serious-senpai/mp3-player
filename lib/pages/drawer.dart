@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:meta/meta.dart";
 
 import "../src/state.dart";
 import "../src/utils.dart";
@@ -23,6 +24,20 @@ mixin PageStateWithDrawer<T extends StatefulWidget> on State<T> {
     var state = scaffoldKey.currentState;
     if (state != null) state.closeDrawer();
   }
+
+  Scaffold buildScaffold(BuildContext context);
+
+  @nonVirtual
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      child: buildScaffold(context),
+      onWillPop: () async {
+        openDrawer();
+        return false;
+      },
+    );
+  }
 }
 
 /// Create a default [Drawer] for all pages within this application
@@ -43,6 +58,11 @@ Drawer createDrawer({required BuildContext context, required ApplicationState st
               leading: const Icon(Icons.equalizer_outlined),
               title: Text("Playing", style: currentRoute == "/play" ? const TextStyle(color: Colors.green) : null),
               onTap: () => currentRoute == "/play" ? Navigator.pop(context) : Navigator.pushReplacementNamed(context, "/play"),
+            ),
+            ListTile(
+              leading: const Icon(Icons.youtube_searched_for_outlined),
+              title: Text("YouTube MP3", style: currentRoute == "/youtube" ? const TextStyle(color: Colors.green) : null),
+              onTap: () => currentRoute == "/youtube" ? Navigator.pop(context) : Navigator.pushReplacementNamed(context, "/youtube"),
             ),
           ],
         ),

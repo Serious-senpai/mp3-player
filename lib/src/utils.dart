@@ -101,19 +101,21 @@ Widget loadingIndicator({String? content, double size = 60}) {
   );
 }
 
+Image logo({BoxFit fit = BoxFit.cover, double? width, double? height}) => Image.asset(
+      "assets/logo.jpg",
+      fit: fit,
+      width: width,
+      height: height,
+    );
+
 /// Construct an [Image] from a give file [path].
 ///
 /// If [path] is `null`, display the application icon instead.
-Image fallbackToLogo(String? path, {double? width, double? height}) => path == null
-    ? Image.asset(
-        "assets/logo.jpg",
-        fit: BoxFit.cover,
-        width: width,
-        height: height,
-      )
+Image fallbackToLogo(String? path, {BoxFit fit = BoxFit.cover, double? width, double? height}) => path == null
+    ? logo(fit: fit, width: width, height: height)
     : Image.file(
         File(path),
-        fit: BoxFit.cover,
+        fit: fit,
         width: width,
         height: height,
       );
@@ -149,7 +151,7 @@ Future<List<Directory>?> getExternalFilesDirs() async {
 
 /// Share a file via other apps
 Future<void> shareFile(String path) async {
-  await _platform.invokeMapMethod(
+  await _platform.invokeMethod(
     "shareFile",
     {
       "path": path,
@@ -157,3 +159,6 @@ Future<void> shareFile(String path) async {
     },
   );
 }
+
+/// Display a toast message
+Future<void> showToast(String content) => _platform.invokeMethod("showToast", {"content": content});

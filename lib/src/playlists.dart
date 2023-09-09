@@ -156,7 +156,7 @@ class Playlist {
         var rawItems = List<String>.from(jsonDecode(row["items"]));
         var items = <Track>[];
         for (var path in rawItems) {
-          var track = await Track.fromPath(path);
+          var track = await Track.fromPath(path, state: state);
           if (track != null) {
             items.add(track);
           }

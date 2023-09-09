@@ -31,8 +31,8 @@ import io.flutter.embedding.android.FlutterActivity;
  */
 public class MediaPlayerService extends Service {
     private static final int NOTIFICATION_ID = 1;
-    private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/notification.channel.id";
-    private static final String NOTIFICATION_CHANNEL_NAME = "Notification Channel";
+    private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/mpnc";
+    private static final String NOTIFICATION_CHANNEL_NAME = "MediaPlayerNotificationChannel";
 
     private abstract class NestedReceiver extends BroadcastReceiver {
         @NonNull
@@ -66,6 +66,7 @@ public class MediaPlayerService extends Service {
         public static final String PAUSE_ACTION = "com.haruka.mp3_player.PAUSE";
         public static final String PREVIOUS_ACTION = "com.haruka.mp3_player.PREVIOUS";
         public static final String RESUME_ACTION = "com.haruka.mp3_player.RESUME";
+        public static final String STOP_ACTION = "com.haruka.mp3_player.STOP";
 
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
@@ -85,6 +86,10 @@ public class MediaPlayerService extends Service {
 
                     case RESUME_ACTION:
                         player.resume(context);
+                        break;
+
+                    case STOP_ACTION:
+                        stopSelf();
                         break;
                 }
             }
@@ -112,42 +117,10 @@ public class MediaPlayerService extends Service {
     @NonNull
     private final NotificationUpdateReceiver receiver = new NotificationUpdateReceiver();
 
-    @ColorInt
-    private static int getDominantColor(@NonNull Bitmap bitmap) {
-        Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 1, 1, true);
-        int color = scaled.getPixel(0, 0);
-        scaled.recycle();
-        return color;
-    }
-
-    // https://stackoverflow.com/questions/3035692/how-to-convert-a-drawable-to-a-bitmap/10600736#10600736
-    @NonNull
-    private static Bitmap drawableToBitmap(@NonNull Drawable drawable) {
-        Bitmap bitmap;
-        if (drawable instanceof BitmapDrawable) {
-            BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
-            bitmap = bitmapDrawable.getBitmap();
-            if (bitmap != null) {
-                return bitmap;
-            }
-        }
-
-        if (drawable.getIntrinsicWidth() <= 0 || drawable.getIntrinsicHeight() <= 0) {
-            bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // Single color bitmap will be created of 1x1 pixel
-        } else {
-            bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-        }
-
-        Canvas canvas = new Canvas(bitmap);
-        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-        drawable.draw(canvas);
-        return bitmap;
-    }
-
     @NonNull
     private Bitmap getApplicationIcon() throws PackageManager.NameNotFoundException {
         Drawable drawable = getPackageManager().getApplicationIcon(getPackageName());
-        return drawableToBitmap(drawable);
+        return Utility.drawableToBitmap(drawable);
     }
 
     @Nullable
@@ -170,6 +143,9 @@ public class MediaPlayerService extends Service {
         mediaPlayerReceiver.unregister();
         receiver.unregister();
         super.onDestroy();
+        if (player != null) {
+            player.stop(getApplicationContext());
+        }
     }
 
     private void displayNotification() {
@@ -250,7 +226,7 @@ public class MediaPlayerService extends Service {
                 : new Notification.Builder(getApplicationContext());
 
         if (thumbnail != null) {
-            notificationBuilder.setColor(getDominantColor(thumbnail))
+            notificationBuilder.setColor(Utility.getDominantColor(thumbnail))
                     .setLargeIcon(thumbnail);
         }
 
@@ -281,6 +257,13 @@ public class MediaPlayerService extends Service {
                 )
                 .setContentText(track.artist != null ? track.artist : "Unknown artist")
                 .setContentTitle(track.title)
+                .setDeleteIntent(
+                        PendingIntent.getBroadcast(
+                                getApplicationContext(), 1,
+                                new Intent(MediaPlayerReceiver.STOP_ACTION),
+                                PendingIntent.FLAG_IMMUTABLE
+                        )
+                )
                 .setOngoing(player.isPlaying())
                 .setOnlyAlertOnce(true)
                 .setPriority(Notification.PRIORITY_MAX)

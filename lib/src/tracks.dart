@@ -1,6 +1,7 @@
 import "package:async_locks/async_locks.dart";
 import "package:path/path.dart";
 
+import "state.dart";
 import "track_info.dart";
 import "utils.dart";
 
@@ -32,14 +33,13 @@ class Track {
 
   /// Create a [Track] from an audio file [path], will be `null` if [path] does not point
   /// to an audio file
-  static Future<Track?> fromPath(String path) => _cacheLock.run(
+  static Future<Track?> fromPath(String path, {required ApplicationState state}) => _cacheLock.run(
         () async {
           var cached = _cache[path];
           if (cached != null) return cached;
 
           if (!await isAudioFile(path)) return null;
-
-          return Track._(uri: path, trackInfo: await TrackInfo.extractInfo(path));
+          return Track._(uri: path, trackInfo: await TrackInfo.extractInfo(path, state: state));
         },
       );
 

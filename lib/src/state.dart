@@ -5,27 +5,32 @@ import "package:sqflite/sqflite.dart";
 
 import "playlists.dart";
 import "tracks.dart";
+import "youtube/client.dart";
 
 /// The global, singleton [ApplicationState]
 class ApplicationState {
-  static const String UPDATE_STATE_METHOD = "com.haruka.mp3_player.UPDATE_STATE";
-  static const String ON_COMPLETION_METHOD = "com.haruka.mp3_player.ON_COMPLETION";
-  static const String ON_ERROR_METHOD = "com.haruka.mp3_player.ON_ERROR";
-  static const String ON_INFO_METHOD = "com.haruka.mp3_player.ON_INFO";
-  static const String ON_PREPARED_METHOD = "com.haruka.mp3_player.ON_PREPARED";
-  static const String ON_SEEK_COMPLETE_METHOD = "com.haruka.mp3_player.ON_SEEK_COMPLETE";
+  static const UPDATE_STATE_METHOD = "com.haruka.mp3_player.UPDATE_STATE";
+  static const ON_COMPLETION_METHOD = "com.haruka.mp3_player.ON_COMPLETION";
+  static const ON_ERROR_METHOD = "com.haruka.mp3_player.ON_ERROR";
+  static const ON_INFO_METHOD = "com.haruka.mp3_player.ON_INFO";
+  static const ON_PREPARED_METHOD = "com.haruka.mp3_player.ON_PREPARED";
+  static const ON_SEEK_COMPLETE_METHOD = "com.haruka.mp3_player.ON_SEEK_COMPLETE";
 
-  static const String INDEX_KEY = "INDEX";
-  static const String CURRENT_POSITION_KEY = "CURRENT_POSITION";
-  static const String DURATION_KEY = "DURATION";
-  static const String IS_PLAYING_KEY = "IS_PLAYING";
-  static const String PLAYLIST_ID_KEY = "PLAYLIST_ID";
-  static const String REPEAT_KEY = "REPEAT";
-  static const String SHUFFLE_KEY = "SHUFFLE";
+  static const INDEX_KEY = "INDEX";
+  static const CURRENT_POSITION_KEY = "CURRENT_POSITION";
+  static const DURATION_KEY = "DURATION";
+  static const IS_PLAYING_KEY = "IS_PLAYING";
+  static const PLAYLIST_ID_KEY = "PLAYLIST_ID";
+  static const REPEAT_KEY = "REPEAT";
+  static const SHUFFLE_KEY = "SHUFFLE";
 
   /// The application SQLite [Database]
   final Database database;
-  final MethodChannel _platform;
+
+  /// The application [YouTubeClient]
+  final YouTubeClient ytClient = YouTubeClient();
+
+  static const _platform = MethodChannel("com.haruka.mp3_player/player", JSONMethodCodec());
 
   Playlist? _currentPlaylist;
 
@@ -69,7 +74,7 @@ class ApplicationState {
   int duration = 0;
   final _streamStateEvent = Event();
 
-  ApplicationState._({required this.database}) : _platform = const MethodChannel("com.haruka.mp3_player/player", JSONMethodCodec()) {
+  ApplicationState._({required this.database}) {
     _platform.setMethodCallHandler(
       (call) async {
         // print("Received $call");
@@ -182,6 +187,7 @@ class ApplicationState {
               onOpen: (database) async {
                 var batch = database.batch();
                 batch.execute("CREATE TABLE IF NOT EXISTS playlists (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, items TEXT NOT NULL, created_at TEXT NOT NULL);");
+                batch.execute("CREATE TABLE IF NOT EXISTS titles (path TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL)");
                 await batch.commit(noResult: true);
               },
             );

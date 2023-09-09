@@ -5,12 +5,14 @@ import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.session.MediaSession;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +50,6 @@ public class MediaPlayerImpl extends MediaPlayer {
      */
     @Nullable
     public TrackMetadata currentTrack;
-
     @NonNull
     private final ArrayList<TrackMetadata> tracks = new ArrayList<>(0);
     @Nullable
@@ -205,7 +206,7 @@ public class MediaPlayerImpl extends MediaPlayer {
     }
 
     private synchronized void sendState(@Nullable Context context) {
-        if (context != null) {
+        if (context != null && playlistId != -1) {
             Intent intent = new Intent(UPDATE_STATE_METHOD);
             intent.putExtra(INDEX_KEY, index);
             intent.putExtra(PLAYLIST_ID_KEY, playlistId);
