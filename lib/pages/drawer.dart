@@ -7,7 +7,7 @@ import "../src/utils.dart";
 /// Mixin on a [State] of a [StatefulWidget] that allows opening and closing a
 /// drawer in a [Scaffold]
 ///
-/// The [build] method should return a [Scaffold] with its [Scaffold.key]
+/// The [buildScaffold] method should return a [Scaffold] with its [Scaffold.key]
 /// set to [scaffoldKey]
 mixin PageStateWithDrawer<T extends StatefulWidget> on State<T> {
   /// The [GlobalKey] for the [Scaffold] returned by the [build] method
@@ -30,8 +30,11 @@ mixin PageStateWithDrawer<T extends StatefulWidget> on State<T> {
   @nonVirtual
   @override
   Widget build(BuildContext context) {
+    var scaffold = buildScaffold(context);
+    assert(scaffold.key == scaffoldKey);
+    assert(scaffold.drawer != null);
     return WillPopScope(
-      child: buildScaffold(context),
+      child: scaffold,
       onWillPop: () async {
         openDrawer();
         return false;

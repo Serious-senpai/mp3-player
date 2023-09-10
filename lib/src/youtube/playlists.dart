@@ -1,5 +1,6 @@
 import "dart:convert";
 
+import "channels.dart";
 import "client.dart";
 import "videos.dart";
 
@@ -11,8 +12,7 @@ import "videos.dart";
 class Playlist {
   final String title;
   final String playlistId;
-  final String author;
-  final String authorId;
+  final PartialChannel channel;
   final List<PartialVideo> videos;
 
   final YouTubeClient _client;
@@ -20,8 +20,7 @@ class Playlist {
   Playlist.fromJson(Map<String, dynamic> data, {required YouTubeClient client})
       : title = data["title"],
         playlistId = data["playlistId"],
-        author = data["author"],
-        authorId = data["authorId"],
+        channel = PartialChannel.fromJson(data, client: client),
         videos = List<PartialVideo>.from(
           List<Map<String, dynamic>>.from(
             data["videos"],

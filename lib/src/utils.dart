@@ -162,3 +162,17 @@ Future<void> shareFile(String path) async {
 
 /// Display a toast message
 Future<void> showToast(String content) => _platform.invokeMethod("showToast", {"content": content});
+
+// https://stackoverflow.com/a/2703882
+final _reserved = {"|", "\\", "?", "*", "<", "\"", ":", ">", "/", "'"};
+
+String removeReservedCharacters(String fileName) {
+  String result = "";
+  for (var i = 0; i < fileName.length; i++) {
+    if (!_reserved.contains(fileName[i])) {
+      result += fileName[i];
+    }
+  }
+
+  return result;
+}

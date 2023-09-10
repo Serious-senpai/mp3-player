@@ -90,6 +90,7 @@ public class Utility {
                                 result = target.run();
                                 success = true;
                             } catch (Throwable throwable) {
+                                finished = true;
                                 error = throwable;
                                 for (Callback<Throwable> callback : onError)
                                     ignoreException(() -> callback.run(error));
@@ -124,7 +125,7 @@ public class Utility {
         ERROR,
     }
 
-    private static final String LOG_TAG = "NATIVE";
+    private static final String LOG_TAG = "HARUKA.MP3_PLAYER.NATIVE";
 
     public static void log(@NonNull LogLevel logLevel, @NonNull String content) {
         switch (logLevel) {
@@ -199,10 +200,11 @@ public class Utility {
 
     @NonNull
     public static Bitmap bitmapFromUrl(@NonNull URL url) throws IOException {
+        log(LogLevel.INFO, format("Loading bitmap from %s", url));
         URLConnection connection = url.openConnection();
         connection.connect();
 
+        log(LogLevel.INFO, format("Connected to %s", url));
         return BitmapFactory.decodeStream(connection.getInputStream());
     }
 }
-

@@ -1,5 +1,6 @@
 import "dart:convert";
 
+import "channels.dart";
 import "client.dart";
 import "playlists.dart";
 import "videos.dart";
@@ -20,32 +21,38 @@ extension AsString on SearchType {
 ///
 /// https://docs.invidious.io/api/#get-apiv1search
 class SearchResult {
+  final List<Channel> channels;
   final List<Playlist> playlists;
   final List<Video> videos;
 
   final YouTubeClient _client;
 
-  SearchResult(List<Map<String, dynamic>> data, {required YouTubeClient client})
-      : playlists = <Playlist>[],
+  SearchResult.empty({required YouTubeClient client})
+      : channels = <Channel>[],
+        playlists = <Playlist>[],
         videos = <Video>[],
-        _client = client {
+        _client = client;
+
+  factory SearchResult.fromJson(List<Map<String, dynamic>> data, {required YouTubeClient client}) {
+    var result = SearchResult.empty(client: client);
     for (var d in data) {
       switch (d["type"]) {
+        case "channel":
+          result.channels.add(Channel.fromJson(d, client: client));
+          break;
+
         case "playlist":
-          playlists.add(Playlist.fromJson(d, client: client));
+          result.playlists.add(Playlist.fromJson(d, client: client));
           break;
 
         case "video":
-          videos.add(Video.fromJson(d, client: client));
+          result.videos.add(Video.fromJson(d, client: client));
           break;
       }
     }
-  }
 
-  SearchResult.empty({required YouTubeClient client})
-      : playlists = <Playlist>[],
-        videos = <Video>[],
-        _client = client;
+    return result;
+  }
 
   bool get isEmpty => playlists.isEmpty && videos.isEmpty;
 
@@ -60,13 +67,12 @@ class SearchResult {
   }
 
   static Future<SearchResult?> get(String query, {required int page, required SearchType type, required YouTubeClient client}) async {
-    print("Searching $query, page = $page, type = ${type.asString()}");
     var response = await client.get(
       pathSegments: ["api", "v1", "search"],
       queryParameters: {"q": query, "page": page.toString(), "type": type.asString()},
     );
 
     if (response == null) return null;
-    return SearchResult(List<Map<String, dynamic>>.from(jsonDecode(utf8.decode(response.bodyBytes))), client: client);
+    return SearchResult.fromJson(List<Map<String, dynamic>>.from(jsonDecode(utf8.decode(response.bodyBytes))), client: client);
   }
 }

@@ -13,7 +13,6 @@ class YouTubeClient {
   YouTubeClient();
 
   Future<void> fillInvidiousInstances() async {
-    print("fillInvidiousInstances() started");
     await _hostsLock.run(
       () async {
         try {
@@ -30,8 +29,6 @@ class YouTubeClient {
               _hosts.add(Uri.https(hostName));
             }
           }
-
-          print("Got hosts $_hosts");
         } on ClientException {
           // pass
         }
@@ -52,7 +49,6 @@ class YouTubeClient {
       () async {
         for (var i = 0; i < _hosts.length; i++) {
           var host = _hosts[i];
-          print("GET: $host");
 
           try {
             var response = await http.get(
@@ -76,7 +72,6 @@ class YouTubeClient {
               }
             }
 
-            print("Updated hosts to $_hosts");
             return response;
           } on ClientException {
             failed.add(host);

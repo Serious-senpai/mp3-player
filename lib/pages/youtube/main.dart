@@ -1,11 +1,11 @@
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 
-import "drawer.dart";
-import "../src/state.dart";
-import "../src/utils.dart";
-import "../src/youtube/search.dart";
-import "../src/youtube/widgets.dart";
+import "../drawer.dart";
+import "../../src/state.dart";
+import "../../src/utils.dart";
+import "../../src/youtube/search.dart";
+import "../../src/youtube/widgets.dart";
 
 enum YouTubeSearchingState {
   IDLING,
@@ -120,7 +120,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
           onPressed: openDrawer,
           icon: const Icon(Icons.equalizer_outlined),
         ),
-        title: const Text("Playing"),
+        title: const Text("YouTube MP3 Downloader"),
       ),
       drawer: createDrawer(context: context, state: state),
       body: DefaultTabController(
@@ -168,6 +168,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                                     ? VideoWidget(
                                         video: searchResult.videos[index],
                                         width: screenSize.width,
+                                        onTap: () => tapToDownload(context, searchResult.videos[index]),
                                       )
                                     : TextButton(
                                         onPressed: () async {
@@ -185,6 +186,11 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                                     ? PlaylistWidget(
                                         playlist: searchResult.playlists[index],
                                         width: screenSize.width,
+                                        onTap: () => Navigator.pushNamed(
+                                          context,
+                                          "/youtube/playlist",
+                                          arguments: searchResult.playlists[index],
+                                        ),
                                       )
                                     : TextButton(
                                         onPressed: () async {

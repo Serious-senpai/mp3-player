@@ -37,11 +37,15 @@ public abstract class AbstractMethodChannelPlugin implements FlutterPlugin {
                     try {
                         handler(method, result, binding);
                     } catch (Throwable error) {
-                        error.printStackTrace();
-                        Utility.log(Utility.LogLevel.ERROR, error.toString());
-                        result.error(error.getClass().getName(), error.getMessage(), error.getCause());
+                        sendError(result, error);
                     }
                 }
         );
+    }
+
+    public void sendError(MethodChannel.Result result, Throwable error) {
+        error.printStackTrace();
+        Utility.log(Utility.LogLevel.ERROR, error.toString());
+        result.error(error.getClass().getName(), error.getMessage(), error.getCause());
     }
 }

@@ -2,7 +2,7 @@ package com.haruka.mp3_player.handler;
 
 import androidx.annotation.NonNull;
 
-import com.haruka.mp3_player.DownloadManager;
+import com.haruka.mp3_player.DownloadController;
 
 import java.net.URL;
 
@@ -29,7 +29,7 @@ public class DownloaderHandler extends AbstractMethodChannelPlugin {
             String description = method.argument("description");
             assert description != null;
 
-            DownloadManager manager = new DownloadManager(
+            DownloadController manager = new DownloadController(
                     new URL(url),
                     outputFilePath,
                     new URL(iconUrl),
@@ -37,8 +37,8 @@ public class DownloaderHandler extends AbstractMethodChannelPlugin {
                     binding.getApplicationContext()
             );
             manager.task.run();
-
-            result.success(null);
+            manager.task.addDoneCallback(() -> result.success(null))
+                    .addErrorCallback((e) -> sendError(result, e));
         } else {
             result.notImplemented();
         }

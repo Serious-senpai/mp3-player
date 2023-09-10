@@ -74,7 +74,7 @@ public class UtilsHandler extends AbstractMethodChannelPlugin {
 
             case "showToast":
                 String content = method.argument("content");
-                Toast.makeText(context, content, Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, content, Toast.LENGTH_LONG).show();
                 result.success(null);
                 break;
 
