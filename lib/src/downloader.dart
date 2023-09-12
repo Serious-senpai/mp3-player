@@ -12,7 +12,6 @@ Future<void> download({
   required String iconUrl,
   required String description,
 }) async {
-  print("Waiting to download $description: $url");
   try {
     await _lock.run(
       () => _platform.invokeMethod(
@@ -25,7 +24,6 @@ Future<void> download({
         },
       ),
     );
-    print("Downloaded $description: $url");
   } on Object {
     await showToast("Download failed");
   }

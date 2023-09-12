@@ -13,14 +13,14 @@ import "../utils.dart";
 
 double _imageHeight(double width) => 9.0 * width / 16.0;
 
-Future<String?> selectDownloadLocation(BuildContext context) async {
+Future<String?> _selectDownloadLocation(BuildContext context, String dialogTitle) async {
   var directories = await getExternalFilesDirs() ?? [];
 
   if (context.mounted) {
     var rootDirectory = await showDialog<Directory>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Select download location"),
+        title: Text(dialogTitle),
         content: DropdownButtonFormField<Directory>(
           items: List<DropdownMenuItem<Directory>>.generate(
             directories.length,
@@ -32,7 +32,7 @@ Future<String?> selectDownloadLocation(BuildContext context) async {
               ),
             ),
           ),
-          hint: const Text("Select a directory"),
+          hint: const Text("Select download location"),
           isExpanded: true,
           onChanged: (value) => Navigator.pop(context, value),
         ),
@@ -57,25 +57,42 @@ Future<String?> selectDownloadLocation(BuildContext context) async {
   return null;
 }
 
-Future<void> tapToDownload(BuildContext context, Video video) async {
-  var urlFuture = video.getAudioUrl();
-  var pickedPath = await selectDownloadLocation(context);
-  if (pickedPath == null) return;
+Future<void> _downloadVideoFromUrl(PartialVideo video, String pickedPath, String? url) async {
+  var fileName = "${removeReservedCharacters(video.title)}.mp3";
+  if (url == null) {
+    await showToast("Cannot download ${video.title}");
+  } else {
+    await showToast("Downloading ${video.title}");
+    await download(
+      url: url,
+      outputFilePath: join(pickedPath, fileName),
+      iconUrl: video.thumbnailUri.toString(),
+      description: video.title,
+    );
+    await showToast("Downloaded to $fileName");
+  }
+}
 
-  if (context.mounted) {
-    var fileName = "${removeReservedCharacters(video.title)}.mp3";
-    var url = await urlFuture;
+Future<void> tapToDownloadVideo(BuildContext context, Video video) async {
+  var urlFuture = video.getAudioUrl();
+  var pickedPath = await _selectDownloadLocation(context, "Download video");
+
+  if (pickedPath != null) {
+    await _downloadVideoFromUrl(video, pickedPath, await urlFuture);
+  }
+}
+
+Future<void> tapToDownloadPlaylist(BuildContext context, Playlist playlist) async {
+  var pickedPath = await _selectDownloadLocation(context, "Download playlist");
+  if (pickedPath == null) return;
+  for (var video in playlist.videos) {
+    var url = await video.getAudioUrl();
     if (url == null) {
       await showToast("Cannot download ${video.title}");
     } else {
-      await showToast("Downloading ${video.title}");
-      await download(
-        url: url,
-        outputFilePath: join(pickedPath, fileName),
-        iconUrl: video.thumbnailUri.toString(),
-        description: video.title,
-      );
-      await showToast("Downloaded to $fileName");
+      if (context.mounted) {
+        await _downloadVideoFromUrl(video, pickedPath, url);
+      }
     }
   }
 }

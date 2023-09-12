@@ -167,7 +167,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                                     ? VideoWidget(
                                         video: searchResult.videos[index],
                                         width: screenSize.width,
-                                        onTap: () => tapToDownload(context, searchResult.videos[index]),
+                                        onTap: () => tapToDownloadVideo(context, searchResult.videos[index]),
                                       )
                                     : TextButton(
                                         onPressed: () => loadMore(type: SearchType.video),

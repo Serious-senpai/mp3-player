@@ -50,7 +50,6 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
   @override
   Scaffold buildScaffold(BuildContext context) {
     playlist = ModalRoute.of(context)?.settings.arguments as Playlist;
-    print("Navigated to ${playlist!.title}");
     var screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -91,7 +90,11 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
 
               return Column(
                 children: [
-                  PlaylistWidget(playlist: data, width: screenSize.width),
+                  PlaylistWidget(
+                    playlist: data,
+                    width: screenSize.width,
+                    onTap: () => tapToDownloadPlaylist(context, data),
+                  ),
                   Expanded(
                     child: ListView.builder(
                       itemBuilder: (context, index) {
@@ -100,7 +103,7 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
                           return MiniVideoWidget(
                             video: video,
                             width: screenSize.width,
-                            onTap: () => tapToDownload(context, video),
+                            onTap: () => tapToDownloadVideo(context, video),
                           );
                         } on Object {
                           var partialVideo = data.videos[index];
@@ -112,7 +115,7 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
                       },
                       itemCount: data.videos.length,
                     ),
-                  )
+                  ),
                 ],
               );
 

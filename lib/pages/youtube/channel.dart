@@ -118,7 +118,7 @@ class _YouTubeChannelPageState extends State<YouTubeChannelPage> with PageStateW
                                 return MiniVideoWidget(
                                   video: video,
                                   width: screenSize.width,
-                                  onTap: () => tapToDownload(context, video),
+                                  onTap: () => tapToDownloadVideo(context, video),
                                 );
                               },
                               itemCount: videos.length,

@@ -19,7 +19,7 @@ import java.net.URL;
 import java.net.URLConnection;
 
 public class DownloadController {
-    private static final int NOTIFICATION_ID = 2;
+    private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/dnc";
     private static final String NOTIFICATION_CHANNEL_NAME = "DownloaderNotificationChannel";
 
@@ -40,6 +40,7 @@ public class DownloadController {
     private final Notification.Builder builder;
     private int progress = -1;
     private int total = -1;
+    private static int completedNotificationId = 2;
 
     public DownloadController(
             @NonNull URL url,
@@ -53,6 +54,13 @@ public class DownloadController {
         this.iconUrl = iconUrl;
         this.description = description;
         this.context = context;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createNotificationChannel();
+            builder = new Notification.Builder(context, NOTIFICATION_CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(context);
+        }
 
         // https://stackoverflow.com/a/15758953
         task = new Utility.ThreadingTask<>(
@@ -93,14 +101,21 @@ public class DownloadController {
                                 Utility.LogLevel.ERROR,
                                 Utility.format("Error downloading %s from %s: %s", description, url, error.toString())
                         )
+                ).addErrorCallback(
+                        () -> {
+                            builder.setContentText(Utility.format("Download failed"))
+                                    .setOngoing(false)
+                                    .setProgress(0, 0, false)
+                                    .setSmallIcon(drawable.stat_sys_download_done);
+
+                            showNotification(completedNotificationId);
+                            completedNotificationId++;
+
+                            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                            notificationManager.cancel(NOTIFICATION_ID);
+                        }
                 );
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            createNotificationChannel();
-            builder = new Notification.Builder(context, NOTIFICATION_CHANNEL_ID);
-        } else {
-            builder = new Notification.Builder(context);
-        }
         builder.setContentTitle(description)
                 .setOnlyAlertOnce(true)
                 .setPriority(Notification.PRIORITY_LOW)
@@ -127,16 +142,21 @@ public class DownloadController {
                         }
                 )
                 .run();
-
-        showNotification();
     }
 
-    private void updateNotification() {
+    private synchronized void updateNotification() {
         if (task.isFinished()) {
             builder.setContentText(Utility.format("Download completed (%s)", Utility.format(progress)))
                     .setOngoing(false)
                     .setProgress(0, 0, false)
                     .setSmallIcon(drawable.stat_sys_download_done);
+
+            showNotification(completedNotificationId);
+            completedNotificationId++;
+
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(NOTIFICATION_ID);
+
         } else {
             builder.setOngoing(true);
             if (total > -1) {
@@ -151,14 +171,14 @@ public class DownloadController {
             } else {
                 builder.setContentText(Utility.format("Downloaded %s", Utility.format(progress)));
             }
-        }
 
-        showNotification();
+            showNotification(NOTIFICATION_ID);
+        }
     }
 
-    private void showNotification() {
+    private void showNotification(int id) {
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-        notificationManager.notify(NOTIFICATION_ID, builder.build());
+        notificationManager.notify(id, builder.build());
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
