@@ -205,8 +205,11 @@ public class MediaPlayerImpl extends MediaPlayer {
         index = updateIndex;
     }
 
+    private boolean shouldSendState = true;
+
     private synchronized void sendState(@Nullable Context context) {
-        if (context != null && playlistId != -1) {
+        if (playlistId != -1) shouldSendState = true;
+        if (context != null && shouldSendState) {
             Intent intent = new Intent(UPDATE_STATE_METHOD);
             intent.putExtra(INDEX_KEY, index);
             intent.putExtra(PLAYLIST_ID_KEY, playlistId);
@@ -238,6 +241,8 @@ public class MediaPlayerImpl extends MediaPlayer {
             intent.putExtra(SHUFFLE_KEY, shuffle);
 
             context.sendBroadcast(intent);
+
+            if (playlistId == -1) shouldSendState = false;
         }
     }
 
