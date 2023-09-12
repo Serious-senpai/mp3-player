@@ -1,6 +1,8 @@
 # Miscellaneous
 run.bat
 
+test/
+
 *.class
 *.log
 *.pyc

@@ -212,8 +212,9 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                           await playlist.addAll(tracks);
 
                           if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Added ${tracks.length} track(s) to playlist!")));
-                          refresh();
                         }
+
+                        refresh();
                       },
                     ),
                     ListTile(
