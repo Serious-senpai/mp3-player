@@ -59,6 +59,11 @@ class YouTubeClient {
               headers: headers,
             );
 
+            if (response.statusCode != 200) {
+              // Some errors are due to Invidious bugs, in these cases we do not perform hosts optimization.
+              return null;
+            }
+
             _hosts.removeAt(i);
             _hosts.insert(0, host);
 

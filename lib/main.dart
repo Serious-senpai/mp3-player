@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "pages/playing.dart";
 import "pages/playlists.dart";
 import "src/state.dart";
+import "pages/youtube/channel.dart";
 import "pages/youtube/main.dart";
 import "pages/youtube/playlist.dart";
 
@@ -45,6 +46,7 @@ class MP3Player extends StatelessWidget {
         "/playlists": (context) => PlaylistsPage(state: state),
         "/play": (context) => PlayPage(state: state),
         "/youtube": (context) => YouTubePage(state: state),
+        "/youtube/channel": (context) => YouTubeChannelPage(state: state),
         "/youtube/playlist": (context) => YouTubePlaylistPage(state: state),
       },
     );

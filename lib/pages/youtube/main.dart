@@ -110,7 +110,6 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
 
   @override
   Scaffold buildScaffold(BuildContext context) {
-    var acceptLoading = true;
     var screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -124,8 +123,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
       ),
       drawer: createDrawer(context: context, state: state),
       body: DefaultTabController(
-        initialIndex: 0,
-        length: 2,
+        length: 3,
         child: Container(
           padding: const EdgeInsets.all(8.0),
           height: screenSize.height,
@@ -148,6 +146,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                 tabs: [
                   Tab(text: "Videos"),
                   Tab(text: "Playlists"),
+                  Tab(text: "Channels"),
                 ],
               ),
               searchingState == YouTubeSearchingState.SEARCHING
@@ -171,12 +170,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                                         onTap: () => tapToDownload(context, searchResult.videos[index]),
                                       )
                                     : TextButton(
-                                        onPressed: () async {
-                                          if (acceptLoading) {
-                                            acceptLoading = false;
-                                            acceptLoading = !(await loadMore(type: SearchType.video));
-                                          }
-                                        },
+                                        onPressed: () => loadMore(type: SearchType.video),
                                         child: const Text("Load more results"),
                                       ),
                                 itemCount: searchResult.videos.length + 1,
@@ -193,15 +187,27 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                                         ),
                                       )
                                     : TextButton(
-                                        onPressed: () async {
-                                          if (acceptLoading) {
-                                            acceptLoading = false;
-                                            acceptLoading = !(await loadMore(type: SearchType.playlist));
-                                          }
-                                        },
+                                        onPressed: () => loadMore(type: SearchType.playlist),
                                         child: const Text("Load more results"),
                                       ),
                                 itemCount: searchResult.playlists.length + 1,
+                              ),
+                              ListView.builder(
+                                itemBuilder: (context, index) => index < searchResult.channels.length
+                                    ? ChannelWidget(
+                                        channel: searchResult.channels[index],
+                                        width: screenSize.width,
+                                        onTap: () => Navigator.pushNamed(
+                                          context,
+                                          "/youtube/channel",
+                                          arguments: searchResult.channels[index],
+                                        ),
+                                      )
+                                    : TextButton(
+                                        onPressed: () => loadMore(type: SearchType.channel),
+                                        child: const Text("Load more results"),
+                                      ),
+                                itemCount: searchResult.channels.length + 1,
                               ),
                             ],
                           ),

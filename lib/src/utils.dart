@@ -176,3 +176,8 @@ String removeReservedCharacters(String fileName) {
 
   return result;
 }
+
+// https://stackoverflow.com/a/1162194
+String ngettext(String first, String second, int value) {
+  return value == 1 ? first : second;
+}

@@ -4,6 +4,11 @@ import "package:meta/meta.dart";
 import "../src/state.dart";
 import "../src/utils.dart";
 
+enum WillPopBehavior {
+  OPEN_DRAWER,
+  POP_ROUTE,
+}
+
 /// Mixin on a [State] of a [StatefulWidget] that allows opening and closing a
 /// drawer in a [Scaffold]
 ///
@@ -12,6 +17,8 @@ import "../src/utils.dart";
 mixin PageStateWithDrawer<T extends StatefulWidget> on State<T> {
   /// The [GlobalKey] for the [Scaffold] returned by the [build] method
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  WillPopBehavior get willPopBehavior => WillPopBehavior.OPEN_DRAWER;
 
   /// Open the [Scaffold.drawer]
   void openDrawer() {
@@ -36,8 +43,14 @@ mixin PageStateWithDrawer<T extends StatefulWidget> on State<T> {
     return WillPopScope(
       child: scaffold,
       onWillPop: () async {
-        openDrawer();
-        return false;
+        switch (willPopBehavior) {
+          case WillPopBehavior.OPEN_DRAWER:
+            openDrawer();
+            return false;
+
+          case WillPopBehavior.POP_ROUTE:
+            return true;
+        }
       },
     );
   }

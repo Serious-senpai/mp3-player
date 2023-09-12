@@ -54,14 +54,16 @@ class SearchResult {
     return result;
   }
 
-  bool get isEmpty => playlists.isEmpty && videos.isEmpty;
+  bool get isEmpty => channels.isEmpty && playlists.isEmpty && videos.isEmpty;
 
   void empty() {
+    channels.clear();
     playlists.clear();
     videos.clear();
   }
 
   void update(SearchResult other) {
+    channels.addAll(other.channels);
     playlists.addAll(other.playlists);
     videos.addAll(other.videos);
   }

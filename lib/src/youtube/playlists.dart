@@ -32,6 +32,8 @@ class Playlist {
 
   Uri? get thumbnailUri => videos.isNotEmpty ? videos[0].thumbnailUri : null;
 
+  Future<Playlist?> refetch() => get(playlistId, client: _client);
+
   static Future<Playlist?> get(String playlistId, {required YouTubeClient client}) async {
     var response = await client.get(
       pathSegments: ["api", "v1", "playlists", playlistId],

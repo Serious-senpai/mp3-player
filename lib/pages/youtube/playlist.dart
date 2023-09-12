@@ -21,6 +21,9 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
 
   Playlist? playlist;
 
+  @override
+  WillPopBehavior get willPopBehavior => WillPopBehavior.POP_ROUTE;
+
   Future<Playlist?>? _fetchPlaylist;
   Future<Playlist?> get fetchPlaylist => _fetchPlaylist ??= _fetchPlaylistImpl();
   Future<Playlist?> _fetchPlaylistImpl() async {
@@ -47,6 +50,7 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
   @override
   Scaffold buildScaffold(BuildContext context) {
     playlist = ModalRoute.of(context)?.settings.arguments as Playlist;
+    print("Navigated to ${playlist!.title}");
     var screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -93,7 +97,7 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
                       itemBuilder: (context, index) {
                         try {
                           var video = data.videos[index] as Video;
-                          return VideoWidget(
+                          return MiniVideoWidget(
                             video: video,
                             width: screenSize.width,
                             onTap: () => tapToDownload(context, video),
