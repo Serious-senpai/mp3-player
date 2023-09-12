@@ -164,11 +164,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                             children: [
                               ListView.builder(
                                 itemBuilder: (context, index) => index < searchResult.videos.length
-                                    ? VideoWidget(
-                                        video: searchResult.videos[index],
-                                        width: screenSize.width,
-                                        onTap: () => tapToDownloadVideo(context, searchResult.videos[index]),
-                                      )
+                                    ? VideoWidget(video: searchResult.videos[index], width: screenSize.width)
                                     : TextButton(
                                         onPressed: () => loadMore(type: SearchType.video),
                                         child: const Text("Load more results"),
@@ -177,15 +173,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                               ),
                               ListView.builder(
                                 itemBuilder: (context, index) => index < searchResult.playlists.length
-                                    ? PlaylistWidget(
-                                        playlist: searchResult.playlists[index],
-                                        width: screenSize.width,
-                                        onTap: () => Navigator.pushNamed(
-                                          context,
-                                          "/youtube/playlist",
-                                          arguments: searchResult.playlists[index],
-                                        ),
-                                      )
+                                    ? PlaylistWidget(playlist: searchResult.playlists[index], width: screenSize.width)
                                     : TextButton(
                                         onPressed: () => loadMore(type: SearchType.playlist),
                                         child: const Text("Load more results"),
@@ -194,15 +182,7 @@ class _YouTubePageState extends State<YouTubePage> with PageStateWithDrawer<YouT
                               ),
                               ListView.builder(
                                 itemBuilder: (context, index) => index < searchResult.channels.length
-                                    ? ChannelWidget(
-                                        channel: searchResult.channels[index],
-                                        width: screenSize.width,
-                                        onTap: () => Navigator.pushNamed(
-                                          context,
-                                          "/youtube/channel",
-                                          arguments: searchResult.channels[index],
-                                        ),
-                                      )
+                                    ? ChannelWidget(channel: searchResult.channels[index], width: screenSize.width)
                                     : TextButton(
                                         onPressed: () => loadMore(type: SearchType.channel),
                                         child: const Text("Load more results"),

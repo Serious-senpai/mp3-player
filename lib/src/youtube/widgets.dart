@@ -44,8 +44,8 @@ Future<String?> _selectDownloadLocation(BuildContext context, String dialogTitle
         context: context,
         fsType: FilesystemType.folder,
         requestPermission: () async {
-          var status = await Permission.storage.request();
-          return status.isGranted;
+          var sdkVersion = await getSDKVersion() ?? 0;
+          return await requestPermission(sdkVersion < 33 ? Permission.storage : Permission.audio);
         },
         rootDirectory: rootDirectory,
         showGoUp: true,
@@ -62,14 +62,12 @@ Future<void> _downloadVideoFromUrl(PartialVideo video, String pickedPath, String
   if (url == null) {
     await showToast("Cannot download ${video.title}");
   } else {
-    await showToast("Downloading ${video.title}");
     await download(
       url: url,
       outputFilePath: join(pickedPath, fileName),
       iconUrl: video.thumbnailUri.toString(),
       description: video.title,
     );
-    await showToast("Downloaded to $fileName");
   }
 }
 
@@ -99,9 +97,8 @@ Future<void> tapToDownloadPlaylist(BuildContext context, Playlist playlist) asyn
 
 class _ChannelAvatar extends StatelessWidget {
   final Future<Channel?> future;
-  final void Function(Channel? channel)? onTap;
 
-  const _ChannelAvatar({Key? key, required this.future, this.onTap}) : super(key: key);
+  const _ChannelAvatar({Key? key, required this.future}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -114,10 +111,7 @@ class _ChannelAvatar extends StatelessWidget {
           case ConnectionState.done:
             var data = snapshot.data;
             return GestureDetector(
-              onTap: () {
-                var onTapLocal = onTap;
-                if (onTapLocal != null) onTapLocal(data);
-              },
+              onTap: () => data?.navigate(context),
               child: data == null
                   ? const Icon(Icons.error_outline, size: 18)
                   : CircleAvatar(
@@ -168,7 +162,6 @@ class VideoWidget extends StatelessWidget {
   final Color? color;
   final Decoration? decoration;
   final double width;
-  final void Function()? onTap;
 
   final Future<Channel?> _getChannelFuture;
 
@@ -178,14 +171,13 @@ class VideoWidget extends StatelessWidget {
     this.color,
     this.decoration,
     required this.width,
-    this.onTap,
   })  : _getChannelFuture = video.channel.toChannel(),
         super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => tapToDownloadVideo(context, video),
       child: Container(
         padding: const EdgeInsets.only(bottom: 10.0, top: 10.0),
         color: color,
@@ -197,18 +189,7 @@ class VideoWidget extends StatelessWidget {
             _ThumbnailWidget(video.thumbnailUri.toString(), width: width),
             Row(
               children: [
-                _ChannelAvatar(
-                  future: _getChannelFuture,
-                  onTap: (channel) {
-                    if (channel != null) {
-                      Navigator.pushNamed(
-                        context,
-                        "/youtube/channel",
-                        arguments: channel,
-                      );
-                    }
-                  },
-                ),
+                _ChannelAvatar(future: _getChannelFuture),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 10.0, right: 10.0, top: 8.0),
@@ -243,7 +224,6 @@ class PlaylistWidget extends StatelessWidget {
   final Color? color;
   final Decoration? decoration;
   final double width;
-  final void Function()? onTap;
 
   final Future<Channel?> _getChannelFuture;
 
@@ -253,14 +233,13 @@ class PlaylistWidget extends StatelessWidget {
     this.color,
     this.decoration,
     required this.width,
-    this.onTap,
   })  : _getChannelFuture = playlist.channel.toChannel(),
         super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => playlist.navigate(context),
       child: Container(
         padding: const EdgeInsets.only(bottom: 10.0, top: 10.0),
         color: color,
@@ -272,18 +251,7 @@ class PlaylistWidget extends StatelessWidget {
             _ThumbnailWidget(playlist.thumbnailUri?.toString(), width: width),
             Row(
               children: [
-                _ChannelAvatar(
-                  future: _getChannelFuture,
-                  onTap: (channel) {
-                    if (channel != null) {
-                      Navigator.pushNamed(
-                        context,
-                        "/youtube/channel",
-                        arguments: channel,
-                      );
-                    }
-                  },
-                ),
+                _ChannelAvatar(future: _getChannelFuture),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 10.0, right: 10.0, top: 8.0),
@@ -304,6 +272,10 @@ class PlaylistWidget extends StatelessWidget {
                     ),
                   ),
                 ),
+                IconButton(
+                  onPressed: () => tapToDownloadPlaylist(context, playlist),
+                  icon: const Icon(Icons.download_outlined),
+                ),
               ],
             ),
           ],
@@ -316,11 +288,10 @@ class PlaylistWidget extends StatelessWidget {
 class ChannelWidget extends StatelessWidget {
   final Channel channel;
   final double width;
-  final void Function()? onTap;
 
   final double padding = 10.0;
 
-  const ChannelWidget({Key? key, required this.channel, required this.width, this.onTap}) : super(key: key);
+  const ChannelWidget({Key? key, required this.channel, required this.width}) : super(key: key);
 
   double get imageRadius => width / 6;
   double get height => 2 * (imageRadius + padding);
@@ -328,7 +299,7 @@ class ChannelWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => channel.navigate(context),
       child: Container(
         padding: EdgeInsets.all(padding),
         width: width,
@@ -446,9 +417,8 @@ class _MiniWidget extends StatelessWidget {
 class MiniVideoWidget extends StatelessWidget {
   final Video video;
   final double width;
-  final void Function()? onTap;
 
-  const MiniVideoWidget({Key? key, required this.video, required this.width, this.onTap}) : super(key: key);
+  const MiniVideoWidget({Key? key, required this.video, required this.width}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -457,7 +427,7 @@ class MiniVideoWidget extends StatelessWidget {
       subtitle: video.channel.author,
       thumbnailUrl: video.thumbnailUri.toString(),
       width: width,
-      onTap: onTap,
+      onTap: () => tapToDownloadVideo(context, video),
     );
   }
 }
@@ -465,9 +435,8 @@ class MiniVideoWidget extends StatelessWidget {
 class MiniPlaylistWidget extends StatelessWidget {
   final Playlist playlist;
   final double width;
-  final void Function()? onTap;
 
-  const MiniPlaylistWidget({Key? key, required this.playlist, required this.width, this.onTap}) : super(key: key);
+  const MiniPlaylistWidget({Key? key, required this.playlist, required this.width}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -476,7 +445,7 @@ class MiniPlaylistWidget extends StatelessWidget {
       subtitle: "${playlist.channel.author} • ${playlist.videos.length} ${ngettext("video", "videos", playlist.videos.length)}",
       thumbnailUrl: playlist.thumbnailUri?.toString(),
       width: width,
-      onTap: onTap,
+      onTap: () => playlist.navigate(context),
     );
   }
 }

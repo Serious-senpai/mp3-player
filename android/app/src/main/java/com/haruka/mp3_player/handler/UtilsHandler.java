@@ -3,6 +3,7 @@ package com.haruka.mp3_player.handler;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.webkit.MimeTypeMap;
 import android.widget.Toast;
 
@@ -34,6 +35,12 @@ public class UtilsHandler extends AbstractMethodChannelPlugin {
     protected void handler(@NonNull MethodCall method, @NonNull MethodChannel.Result result, @NonNull FlutterPluginBinding binding) {
         Context context = binding.getApplicationContext();
         switch (method.method) {
+            case "getSDKVersion":
+                HashMap<String, Integer> sdkData = new HashMap<>();
+                sdkData.put("SDK", Build.VERSION.SDK_INT);
+                result.success(sdkData);
+                break;
+
             case "getMimeTypeFromExtension":
                 String extension = method.argument("extension");
                 HashMap<String, String> extensionData = new HashMap<>();

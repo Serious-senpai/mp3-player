@@ -25,6 +25,6 @@ Future<void> download({
       ),
     );
   } on Object {
-    await showToast("Download failed");
+    // pass
   }
 }

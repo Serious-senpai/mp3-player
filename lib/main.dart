@@ -1,8 +1,10 @@
 import "package:flutter/material.dart";
+import "package:permission_handler/permission_handler.dart";
 
 import "pages/playing.dart";
 import "pages/playlists.dart";
 import "src/state.dart";
+import "src/utils.dart";
 import "pages/youtube/channel.dart";
 import "pages/youtube/main.dart";
 import "pages/youtube/playlist.dart";
@@ -24,6 +26,7 @@ class MP3Player extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    requestPermission(Permission.notification);
     return MaterialApp(
       title: "MP3 Player",
       darkTheme: ThemeData(

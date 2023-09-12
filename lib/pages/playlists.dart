@@ -162,8 +162,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                         var pickedPath = await FilesystemPicker.openDialog(
                           context: context,
                           requestPermission: () async {
-                            var status = await Permission.storage.request();
-                            return status.isGranted;
+                            var sdkVersion = await getSDKVersion() ?? 0;
+                            return await requestPermission(sdkVersion < 33 ? Permission.storage : Permission.audio);
                           },
                           rootDirectory: rootDirectory,
                           showGoUp: true,

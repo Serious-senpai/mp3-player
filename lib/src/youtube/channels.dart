@@ -1,5 +1,7 @@
 import "dart:convert";
 
+import "package:flutter/material.dart";
+
 import "client.dart";
 import "images.dart";
 import "playlists.dart";
@@ -26,7 +28,7 @@ class PartialChannel {
 class Channel extends PartialChannel {
   static final _cache = <String, Channel>{};
 
-  final List<Image> thumbnails;
+  final List<ImageObject> thumbnails;
   final int subCount;
   final String description;
 
@@ -48,7 +50,7 @@ class Channel extends PartialChannel {
     return _cache[authorId] = Channel._(
       data["author"],
       data["authorId"],
-      List<Image>.from(thumbnailsData.map((d) => Image.fromJson(d))),
+      List<ImageObject>.from(thumbnailsData.map((d) => ImageObject.fromJson(d))),
       data["subCount"],
       data["description"],
       client,
@@ -130,6 +132,8 @@ class Channel extends PartialChannel {
 
     return results;
   }
+
+  Future<T?> navigate<T>(BuildContext context) => Navigator.pushNamed(context, "/youtube/channel", arguments: this);
 
   static Future<Channel?> get(String channelId, {required YouTubeClient client}) async {
     var cached = _cache[channelId];

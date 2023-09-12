@@ -103,7 +103,7 @@ public class DownloadController {
                         )
                 ).addErrorCallback(
                         () -> {
-                            builder.setContentText(Utility.format("Download failed"))
+                            builder.setContentText("Download failed")
                                     .setOngoing(false)
                                     .setProgress(0, 0, false)
                                     .setSmallIcon(drawable.stat_sys_download_done);

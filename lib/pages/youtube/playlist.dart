@@ -90,11 +90,7 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
 
               return Column(
                 children: [
-                  PlaylistWidget(
-                    playlist: data,
-                    width: screenSize.width,
-                    onTap: () => tapToDownloadPlaylist(context, data),
-                  ),
+                  PlaylistWidget(playlist: data, width: screenSize.width),
                   Expanded(
                     child: ListView.builder(
                       itemBuilder: (context, index) {
@@ -103,7 +99,6 @@ class _YouTubePlaylistPageState extends State<YouTubePlaylistPage> with PageStat
                           return MiniVideoWidget(
                             video: video,
                             width: screenSize.width,
-                            onTap: () => tapToDownloadVideo(context, video),
                           );
                         } on Object {
                           var partialVideo = data.videos[index];

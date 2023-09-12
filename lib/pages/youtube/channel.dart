@@ -118,7 +118,6 @@ class _YouTubeChannelPageState extends State<YouTubeChannelPage> with PageStateW
                                 return MiniVideoWidget(
                                   video: video,
                                   width: screenSize.width,
-                                  onTap: () => tapToDownloadVideo(context, video),
                                 );
                               },
                               itemCount: videos.length,
@@ -148,11 +147,6 @@ class _YouTubeChannelPageState extends State<YouTubeChannelPage> with PageStateW
                                 return MiniPlaylistWidget(
                                   playlist: playlist,
                                   width: screenSize.width,
-                                  onTap: () => Navigator.pushNamed(
-                                    context,
-                                    "/youtube/playlist",
-                                    arguments: playlist,
-                                  ),
                                 );
                               },
                               itemCount: playlists.length,

@@ -4,6 +4,7 @@ import "package:async_locks/async_locks.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:path/path.dart";
+import "package:permission_handler/permission_handler.dart";
 
 const _platform = MethodChannel("com.haruka.mp3_player/utils", JSONMethodCodec());
 
@@ -120,6 +121,11 @@ Image fallbackToLogo(String? path, {BoxFit fit = BoxFit.cover, double? width, do
         height: height,
       );
 
+Future<int?> getSDKVersion() async {
+  var data = await _platform.invokeMapMethod("getSDKVersion");
+  return data?["SDK"];
+}
+
 /// Returns the MIME type of the given file at [path] (if any)
 Future<String?> getMimeType(String path) async {
   var ext = extension(path);
@@ -180,4 +186,21 @@ String removeReservedCharacters(String fileName) {
 // https://stackoverflow.com/a/1162194
 String ngettext(String first, String second, int value) {
   return value == 1 ? first : second;
+}
+
+Future<bool> requestPermission(Permission permission) async {
+  switch (await permission.status) {
+    case PermissionStatus.granted:
+      return true;
+
+    case PermissionStatus.denied:
+      var status = await permission.request();
+      return status.isGranted;
+
+    case PermissionStatus.permanentlyDenied:
+      return await openAppSettings();
+
+    default:
+      return false;
+  }
 }

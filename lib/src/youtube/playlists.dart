@@ -1,5 +1,7 @@
 import "dart:convert";
 
+import "package:flutter/material.dart";
+
 import "channels.dart";
 import "client.dart";
 import "videos.dart";
@@ -33,6 +35,8 @@ class Playlist {
   Uri? get thumbnailUri => videos.isNotEmpty ? videos[0].thumbnailUri : null;
 
   Future<Playlist?> refetch() => get(playlistId, client: _client);
+
+  Future<T?> navigate<T>(BuildContext context) => Navigator.pushNamed<T>(context, "/youtube/playlist", arguments: this);
 
   static Future<Playlist?> get(String playlistId, {required YouTubeClient client}) async {
     var response = await client.get(
