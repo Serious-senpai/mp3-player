@@ -322,7 +322,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                                       )
                                 : null,
                             onTap: () async {
-                              Navigator.pushReplacementNamed(context, "/play");
+                              Navigator.pushReplacementNamed(context, "/playing");
                               if (index != playlist.playingIndex) await state.play(playlist: playlist, index: index);
                             },
                             onLongPress: () async {

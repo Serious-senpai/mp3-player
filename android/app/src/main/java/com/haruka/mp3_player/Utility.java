@@ -1,16 +1,23 @@
 package com.haruka.mp3_player;
 
+import android.app.ActivityManager;
+import android.app.Service;
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.HashSet;
@@ -127,6 +134,10 @@ public class Utility {
 
     private static final String LOG_TAG = "HARUKA.MP3_PLAYER.NATIVE";
 
+    public static void log(@NonNull String content) {
+        log(LogLevel.INFO, content);
+    }
+
     public static void log(@NonNull LogLevel logLevel, @NonNull String content) {
         switch (logLevel) {
             case DEBUG:
@@ -174,7 +185,7 @@ public class Utility {
         return color;
     }
 
-    // https://stackoverflow.com/questions/3035692/how-to-convert-a-drawable-to-a-bitmap/10600736#10600736
+    // https://stackoverflow.com/a/10600736
     @NonNull
     public static Bitmap drawableToBitmap(@NonNull Drawable drawable) {
         Bitmap bitmap;
@@ -200,11 +211,41 @@ public class Utility {
 
     @NonNull
     public static Bitmap bitmapFromUrl(@NonNull URL url) throws IOException {
-        log(LogLevel.INFO, format("Loading bitmap from %s", url));
         URLConnection connection = url.openConnection();
         connection.connect();
 
-        log(LogLevel.INFO, format("Connected to %s", url));
         return BitmapFactory.decodeStream(connection.getInputStream());
+    }
+
+    @NonNull
+    public static Bitmap bitmapFromData(byte[] data) {
+        return BitmapFactory.decodeByteArray(data, 0, data.length);
+    }
+
+    @NonNull
+    public static Bitmap getApplicationIcon(@NonNull Context context) throws PackageManager.NameNotFoundException {
+        Drawable drawable = context.getPackageManager().getApplicationIcon(context.getPackageName());
+        return drawableToBitmap(drawable);
+    }
+
+    @NonNull
+    public static Uri uriFromFile(@NonNull String path) {
+        return Uri.fromFile(new File(path));
+    }
+
+    @NonNull
+    public static Uri uriFromFile(@NonNull URI path) {
+        return Uri.fromFile(new File(path));
+    }
+
+    // https://stackoverflow.com/a/5921190
+    public static <T extends Service> boolean serviceIsRunning(@NonNull Context context, @NonNull Class<T> serviceClass) {
+        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

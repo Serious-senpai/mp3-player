@@ -9,12 +9,7 @@ import "youtube/client.dart";
 
 /// The global, singleton [ApplicationState]
 class ApplicationState {
-  static const UPDATE_STATE_METHOD = "com.haruka.mp3_player.UPDATE_STATE";
-  static const ON_COMPLETION_METHOD = "com.haruka.mp3_player.ON_COMPLETION";
-  static const ON_ERROR_METHOD = "com.haruka.mp3_player.ON_ERROR";
-  static const ON_INFO_METHOD = "com.haruka.mp3_player.ON_INFO";
-  static const ON_PREPARED_METHOD = "com.haruka.mp3_player.ON_PREPARED";
-  static const ON_SEEK_COMPLETE_METHOD = "com.haruka.mp3_player.ON_SEEK_COMPLETE";
+  static const UPDATE_STATE_CHANNEL_METHOD = "UPDATE_STATE_CHANNEL_METHOD";
 
   static const INDEX_KEY = "INDEX";
   static const CURRENT_POSITION_KEY = "CURRENT_POSITION";
@@ -52,63 +47,48 @@ class ApplicationState {
   /// Whether the application is currently playing any [Track]
   bool isPlaying = false;
 
-  /// Whether the repeat mode is currently on.
-  ///
-  /// This should be the same as `MediaPlayer.isLooping()` on the native side.
-  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#isLooping()
-  bool repeat = false;
+  // https://developer.android.com/reference/androidx/media3/common/Player.RepeatMode
+  static const REPEAT_MODE_OFF = 0;
+  static const REPEAT_MODE_ONE = 1;
+  static const REPEAT_MODE_ALL = 2;
 
-  /// Whether the shuffle mode is currently on
+  /// The current repeat mode of the player
+  ///
+  /// See also: https://developer.android.com/reference/androidx/media3/common/Player#getRepeatMode()
+  int repeat = REPEAT_MODE_OFF;
+
+  /// The current shuffle mode of the player
+  ///
+  /// See also: https://developer.android.com/reference/androidx/media3/common/Player#getShuffleModeEnabled()
   bool shuffle = false;
 
   /// The current position (in milliseconds) of [currentTrack]. This value shouldn't be rely on when no track is playing.
-  ///
-  /// This should be the same as `MediaPlayer.getCurrentPosition()` on the native side.
-  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#getCurrentPosition()
   int currentPosition = 0;
 
   /// The duration (a.k.a. length) in milliseconds of [currentTrack]. This value shouldn't be rely on when no track is playing.
-  ///
-  /// This should be the same as `MediaPlayer.getDuration()` on the native side.
-  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#getDuration()
   int duration = 0;
   final _streamStateEvent = Event();
 
   ApplicationState._({required this.database}) {
     _platform.setMethodCallHandler(
       (call) async {
-        // print("Received $call");
-        switch (call.method) {
-          case UPDATE_STATE_METHOD:
-            var arguments = call.arguments;
+        print("Received $call");
+        assert(call.method == UPDATE_STATE_CHANNEL_METHOD);
+        var arguments = call.arguments;
 
-            if (arguments[PLAYLIST_ID_KEY] >= 0) {
-              _currentPlaylist = await Playlist.fromId(arguments[PLAYLIST_ID_KEY], state: this);
-            } else {
-              _currentPlaylist = null;
-            }
-
-            _index = arguments[INDEX_KEY];
-            isPlaying = arguments[IS_PLAYING_KEY];
-            repeat = arguments[REPEAT_KEY];
-            shuffle = arguments[SHUFFLE_KEY];
-            currentPosition = arguments[CURRENT_POSITION_KEY];
-            duration = arguments[DURATION_KEY];
-            _streamStateEvent.set();
-            break;
-          case ON_COMPLETION_METHOD:
-            break;
-          case ON_ERROR_METHOD:
-            break;
-          case ON_INFO_METHOD:
-            break;
-          case ON_PREPARED_METHOD:
-            break;
-          case ON_SEEK_COMPLETE_METHOD:
-            break;
-          default:
-            throw UnimplementedError("Unknown method ${call.method}");
+        if (arguments[PLAYLIST_ID_KEY] >= 0) {
+          _currentPlaylist = await Playlist.fromId(arguments[PLAYLIST_ID_KEY], state: this);
+        } else {
+          _currentPlaylist = null;
         }
+
+        _index = arguments[INDEX_KEY];
+        isPlaying = arguments[IS_PLAYING_KEY];
+        repeat = arguments[REPEAT_KEY];
+        shuffle = arguments[SHUFFLE_KEY];
+        currentPosition = arguments[CURRENT_POSITION_KEY];
+        duration = arguments[DURATION_KEY];
+        _streamStateEvent.set();
       },
     );
   }
@@ -143,8 +123,8 @@ class ApplicationState {
   /// Request a resume from the native side
   Future<void> resume() => _platform.invokeMapMethod("resume");
 
-  /// Request to the native side that the MediaPlayer should seek to the specified [duration]
-  Future<void> seek(Duration duration) => _platform.invokeMapMethod("seek", {"duration": duration.inMilliseconds});
+  /// Request to the native side that the ExoPlayer should seek to the specified [duration]
+  Future<void> seek(Duration duration) => _platform.invokeMapMethod("seek", {"positionMs": duration.inMilliseconds});
 
   /// Request to the native side to skip to the next track in [currentPlaylist]
   Future<void> next() => _platform.invokeMapMethod("next");
@@ -152,12 +132,10 @@ class ApplicationState {
   /// Request to the native side to skip to the previous track in the [currentPlaylist]
   Future<void> previous() => _platform.invokeMapMethod("previous");
 
-  /// Request to the native side to stop the MediaPlayer
+  /// Request to the native side to stop the ExoPlayer
   Future<void> stop() => _platform.invokeMapMethod("stop");
 
-  /// Toggle the looping mode of the native MediaPlayer
-  ///
-  /// See also: https://developer.android.com/reference/android/media/MediaPlayer#setLooping(boolean)
+  /// Toggle the repeat mode of the native ExoPlayer
   Future<void> toggleRepeat() => _platform.invokeMapMethod("toggleRepeat");
 
   /// Toggle the shuffle mode of the player

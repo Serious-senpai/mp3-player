@@ -65,7 +65,7 @@ public class DownloadController {
         // https://stackoverflow.com/a/15758953
         task = new Utility.ThreadingTask<>(
                 () -> {
-                    Utility.log(Utility.LogLevel.INFO, Utility.format("Downloading %s from %s to %s", description, url, outputFilePath));
+                    Utility.log(Utility.format("Downloading %s from %s to %s", description, url, outputFilePath));
 
                     URLConnection connection = url.openConnection();
                     connection.connect();

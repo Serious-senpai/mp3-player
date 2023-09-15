@@ -86,10 +86,11 @@ class _PlaylistsPageState extends State<PlayPage> with PageStateWithDrawer<PlayP
                             Expanded(
                               child: IconButton(
                                 onPressed: state.toggleRepeat,
-                                icon: Icon(
-                                  Icons.loop_outlined,
-                                  color: state.repeat ? Colors.green : null,
-                                ),
+                                icon: state.repeat == ApplicationState.REPEAT_MODE_OFF
+                                    ? const Icon(Icons.repeat_outlined)
+                                    : state.repeat == ApplicationState.REPEAT_MODE_ONE
+                                        ? const Icon(Icons.repeat_one_outlined, color: Colors.green)
+                                        : const Icon(Icons.repeat_outlined, color: Colors.green),
                               ),
                             ),
                             Expanded(

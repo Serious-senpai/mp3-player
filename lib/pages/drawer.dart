@@ -72,8 +72,8 @@ Drawer createDrawer({required BuildContext context, required ApplicationState st
             ),
             ListTile(
               leading: const Icon(Icons.equalizer_outlined),
-              title: Text("Playing", style: currentRoute == "/play" ? const TextStyle(color: Colors.green) : null),
-              onTap: () => currentRoute == "/play" ? Navigator.pop(context) : Navigator.pushReplacementNamed(context, "/play"),
+              title: Text("Playing", style: currentRoute == "/playing" ? const TextStyle(color: Colors.green) : null),
+              onTap: () => currentRoute == "/playing" ? Navigator.pop(context) : Navigator.pushReplacementNamed(context, "/playing"),
             ),
             ListTile(
               leading: const Icon(Icons.youtube_searched_for_outlined),

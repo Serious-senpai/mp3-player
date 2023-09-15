@@ -15,6 +15,7 @@ import io.flutter.plugin.common.MethodChannel;
 
 import static android.media.MediaMetadataRetriever.*;
 
+import com.haruka.mp3_player.MediaPlayerService;
 import com.haruka.mp3_player.Utility;
 
 /**
@@ -31,7 +32,6 @@ public class MediaMetadataHandler extends AbstractMethodChannelPlugin {
      */
     public MediaMetadataHandler(@NonNull FlutterActivity flutterActivity) {
         super(flutterActivity, "com.haruka.mp3_player/media_metadata");
-        removeFileEntity(flutterActivity.getCacheDir(), false);
     }
 
     @Override
@@ -62,7 +62,10 @@ public class MediaMetadataHandler extends AbstractMethodChannelPlugin {
                     result.success(null);
                 } else {
                     File outputFile = new File(flutterActivity.getCacheDir().getAbsolutePath(), Utility.format("thumbnail_%d.png", thumbnailCounter++));
-                    assert outputFile.createNewFile();
+                    while (!outputFile.createNewFile()) {
+                        outputFile = new File(flutterActivity.getCacheDir().getAbsolutePath(), Utility.format("thumbnail_%d.png", thumbnailCounter++));
+                    }
+
                     try (FileOutputStream stream = new FileOutputStream(outputFile)) {
                         stream.write(artwork);
                     }
@@ -80,6 +83,9 @@ public class MediaMetadataHandler extends AbstractMethodChannelPlugin {
 
     @Override
     protected void whenAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+        if (!Utility.serviceIsRunning(binding.getApplicationContext(), MediaPlayerService.class)) {
+            removeFileEntity(flutterActivity.getCacheDir(), false);
+        }
     }
 
     @Override

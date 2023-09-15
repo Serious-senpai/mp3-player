@@ -47,7 +47,7 @@ class MP3Player extends StatelessWidget {
       initialRoute: "/playlists",
       routes: {
         "/playlists": (context) => PlaylistsPage(state: state),
-        "/play": (context) => PlayPage(state: state),
+        "/playing": (context) => PlayPage(state: state),
         "/youtube": (context) => YouTubePage(state: state),
         "/youtube/channel": (context) => YouTubeChannelPage(state: state),
         "/youtube/playlist": (context) => YouTubePlaylistPage(state: state),
