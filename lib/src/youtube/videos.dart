@@ -1,7 +1,5 @@
 import "dart:convert";
 
-import "package:http/http.dart";
-
 import "channels.dart";
 import "client.dart";
 

@@ -36,9 +36,9 @@ public class DownloaderHandler extends AbstractMethodChannelPlugin {
                     description,
                     binding.getApplicationContext()
             );
-            manager.task.run();
             manager.task.addDoneCallback(() -> result.success(null))
-                    .addErrorCallback((e) -> sendError(result, e));
+                    .addErrorCallback((e) -> sendError(result, e))
+                    .run();
         } else {
             result.notImplemented();
         }

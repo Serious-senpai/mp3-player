@@ -11,6 +11,7 @@ import android.R.drawable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
 import java.io.BufferedInputStream;
@@ -22,6 +23,7 @@ public class DownloadController {
     private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "mp3_player/dnc";
     private static final String NOTIFICATION_CHANNEL_NAME = "DownloaderNotificationChannel";
+    private static final int NOTIFICATION_UPDATE_PERIOD_MS = 500;
 
     @NonNull
     public final URL url;
@@ -37,7 +39,7 @@ public class DownloadController {
     public final Utility.ThreadingTask<Boolean> task;
 
     @NonNull
-    private final Notification.Builder builder;
+    private final NotificationCompat.Builder builder;
     private int progress = -1;
     private int total = -1;
     private static int completedNotificationId = 2;
@@ -57,10 +59,8 @@ public class DownloadController {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createNotificationChannel();
-            builder = new Notification.Builder(context, NOTIFICATION_CHANNEL_ID);
-        } else {
-            builder = new Notification.Builder(context);
         }
+        builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID);
 
         // https://stackoverflow.com/a/15758953
         task = new Utility.ThreadingTask<>(
@@ -82,7 +82,7 @@ public class DownloadController {
                     while ((chunk = input.read(writer)) != -1) {
                         progress += chunk;
                         output.write(writer, 0, chunk);
-                        if (System.currentTimeMillis() - timer > 1000) {
+                        if (System.currentTimeMillis() - timer > NOTIFICATION_UPDATE_PERIOD_MS) {
                             updateNotification();
                             timer = System.currentTimeMillis();
                         }
@@ -120,7 +120,7 @@ public class DownloadController {
                 .setOnlyAlertOnce(true)
                 .setPriority(Notification.PRIORITY_LOW)
                 .setSmallIcon(drawable.stat_sys_download)
-                .setVisibility(Notification.VISIBILITY_PUBLIC);
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
 
         builder.setColor(Color.CYAN);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

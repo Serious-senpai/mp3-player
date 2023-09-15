@@ -14,17 +14,21 @@ Future<void> download({
 }) async {
   try {
     await _lock.run(
-      () => _platform.invokeMethod(
-        "download",
-        {
-          "url": url,
-          "outputFilePath": outputFilePath,
-          "iconUrl": iconUrl,
-          "description": description,
-        },
-      ),
+      () async {
+        await showToast("Downloading $description");
+        await _platform.invokeMethod(
+          "download",
+          {
+            "url": url,
+            "outputFilePath": outputFilePath,
+            "iconUrl": iconUrl,
+            "description": description,
+          },
+        );
+      },
     );
-  } on Object {
-    // pass
+  } on Object catch (error, stackTrace) {
+    print(error);
+    print(stackTrace);
   }
 }

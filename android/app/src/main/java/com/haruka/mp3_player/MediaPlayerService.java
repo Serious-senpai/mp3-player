@@ -41,6 +41,7 @@ public class MediaPlayerService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String NOTIFICATION_CHANNEL_ID = "com.haruka.mp3_player.MediaPlayerNotificationChannel";
     private static final String NOTIFICATION_CHANNEL_NAME = "MediaPlayerNotificationChannel";
+    private static final int PLAYER_UPDATE_PERIOD_MS = 250;
 
     public class MediaControlReceiver extends BroadcastReceiver {
         public static final String NEXT_ACTION = "com.haruka.mp3_player.NEXT";
@@ -97,6 +98,7 @@ public class MediaPlayerService extends Service {
                     player.prepare();
                     player.seekTo(index, 0);
                     player.play();
+                    createTrackNotification();
                     break;
 
                 case PREVIOUS_ACTION:
@@ -117,7 +119,7 @@ public class MediaPlayerService extends Service {
                     break;
 
                 case SWITCH_REPEAT_ACTION:
-                    player.setRepeatMode((player.getRepeatMode() + 1) % 3);
+                    player.setRepeatMode((player.getRepeatMode() + 2) % 3);
                     break;
 
                 case SWITCH_SHUFFLE_ACTION:
@@ -171,7 +173,7 @@ public class MediaPlayerService extends Service {
     private NotificationCompat.Builder notificationBuilder;
 
     @NonNull
-    private NotificationCompat.Builder getNotificationBuilder() {
+    private synchronized NotificationCompat.Builder getNotificationBuilder() {
         if (notificationBuilder == null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 createNotificationChannel();
@@ -220,7 +222,7 @@ public class MediaPlayerService extends Service {
             @Override
             public void run() {
                 sendState();
-                handler.postDelayed(this, 300);
+                handler.postDelayed(this, PLAYER_UPDATE_PERIOD_MS);
             }
         };
         handler.postDelayed(sendStateRunner, 0);
@@ -255,7 +257,7 @@ public class MediaPlayerService extends Service {
             intent.putExtra(PlayerStateReceiver.SHUFFLE_KEY, player.getShuffleModeEnabled());
 
             context.sendBroadcast(intent);
-            updateNotification();
+            updateTrackNotification();
 
             if (playlistId == -1) shouldSendState = false;
         }
@@ -279,7 +281,7 @@ public class MediaPlayerService extends Service {
         return null;
     }
 
-    private void updateNotification() {
+    private synchronized void createTrackNotification() {
         Player player = getMediaSession().getPlayer();
         MediaSession mediaSession = getMediaSession();
 
@@ -290,6 +292,35 @@ public class MediaPlayerService extends Service {
                     .setLargeIcon(thumbnail);
         }
 
+        builder.setContentIntent(getPlayingScreenPendingIntent())
+                .setContentText(
+                        player.getCurrentMediaItem() != null
+                                ? player.getCurrentMediaItem().mediaMetadata.artist
+                                : null
+                )
+                .setContentTitle(
+                        player.getCurrentMediaItem() != null
+                                ? player.getCurrentMediaItem().mediaMetadata.title
+                                : null
+                )
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setShowWhen(false)
+                .setSmallIcon(drawable.ic_media_play)
+                .setStyle(
+                        new MediaStyleNotificationHelper.MediaStyle(mediaSession)
+                                .setShowActionsInCompactView(0, 1, 2)
+                                .setShowCancelButton(true)
+                )
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+
+        updateTrackNotification();
+    }
+
+    private synchronized void updateTrackNotification() {
+        Player player = getMediaSession().getPlayer();
+
+        NotificationCompat.Builder builder = getNotificationBuilder();
         Notification notification = builder
                 .clearActions()
                 .addAction(
@@ -323,35 +354,14 @@ public class MediaPlayerService extends Service {
                                 PendingIntent.FLAG_IMMUTABLE
                         )
                 )
-                .setContentIntent(getPlayingScreenPendingIntent())
-                .setContentText(
-                        player.getCurrentMediaItem() != null
-                                ? player.getCurrentMediaItem().mediaMetadata.artist
-                                : null
-                )
-                .setContentTitle(
-                        player.getCurrentMediaItem() != null
-                                ? player.getCurrentMediaItem().mediaMetadata.title
-                                : null
-                )
                 .setOngoing(player.isPlaying())
-                .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setShowWhen(false)
-                .setSmallIcon(drawable.ic_media_play)
-                .setStyle(
-                        new MediaStyleNotificationHelper.MediaStyle(mediaSession)
-                                .setShowActionsInCompactView(0, 1, 2)
-                                .setShowCancelButton(true)
-                )
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .build();
 
         startForeground(NOTIFICATION_ID, notification);
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private void createNotificationChannel() {
+    private synchronized void createNotificationChannel() {
         NotificationChannel notificationChannel = new NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
                 NOTIFICATION_CHANNEL_NAME,
