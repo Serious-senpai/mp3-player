@@ -271,7 +271,8 @@ public class MediaPlayerService extends Service {
         } catch (Throwable e) {
             try {
                 return Utility.getApplicationIcon(getApplicationContext());
-            } catch (PackageManager.NameNotFoundException ignored) {
+            } catch (PackageManager.NameNotFoundException error) {
+                error.printStackTrace();
             }
         }
 

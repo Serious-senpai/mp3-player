@@ -106,17 +106,35 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
               var playlists = List<Playlist>.from(Playlist.playlists.values);
               if (playlists.isEmpty) {
                 return Center(
-                  child: RichText(
-                    text: const TextSpan(
-                      children: <InlineSpan>[
-                        TextSpan(text: "Click "),
-                        WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Icon(Icons.playlist_add),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      RichText(
+                        text: const TextSpan(
+                          children: <InlineSpan>[
+                            TextSpan(text: "Click "),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Icon(Icons.playlist_add),
+                            ),
+                            TextSpan(text: " to create a new playlist"),
+                          ],
                         ),
-                        TextSpan(text: " to create a new playlist"),
-                      ],
-                    ),
+                      ),
+                      RichText(
+                        text: const TextSpan(
+                          children: <InlineSpan>[
+                            TextSpan(text: "Click "),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Icon(Icons.queue_music_outlined),
+                            ),
+                            TextSpan(text: " to view the menu"),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }
