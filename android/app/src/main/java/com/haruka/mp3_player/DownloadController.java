@@ -79,11 +79,12 @@ public class DownloadController {
                     int chunk;
 
                     long timer = System.currentTimeMillis();
+                    boolean notifyCompletion = false;
                     while ((chunk = input.read(writer)) != -1) {
                         progress += chunk;
                         output.write(writer, 0, chunk);
                         if (System.currentTimeMillis() - timer > NOTIFICATION_UPDATE_PERIOD_MS) {
-                            updateNotification();
+                            notifyCompletion = notifyCompletion || updateNotification();
                             timer = System.currentTimeMillis();
                         }
                     }
@@ -91,6 +92,8 @@ public class DownloadController {
                     output.flush();
                     output.close();
                     input.close();
+
+                    if (!notifyCompletion) updateNotification();
 
                     return true;
                 }
@@ -144,7 +147,7 @@ public class DownloadController {
                 .run();
     }
 
-    private synchronized void updateNotification() {
+    private synchronized boolean updateNotification() {
         if (task.isFinished()) {
             builder.setContentText(Utility.format("Download completed (%s)", Utility.format(progress)))
                     .setOngoing(false)
@@ -157,6 +160,7 @@ public class DownloadController {
             NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.cancel(NOTIFICATION_ID);
 
+            return true;
         } else {
             builder.setOngoing(true);
             if (total > -1) {
@@ -173,6 +177,7 @@ public class DownloadController {
             }
 
             showNotification(NOTIFICATION_ID);
+            return false;
         }
     }
 

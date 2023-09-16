@@ -44,90 +44,128 @@ public class MediaPlayerService extends Service {
     private static final int PLAYER_UPDATE_PERIOD_MS = 250;
 
     public class MediaControlReceiver extends BroadcastReceiver {
+        public static final String ADD_ACTION = "com.haruka.mp3_player.ADD";
         public static final String NEXT_ACTION = "com.haruka.mp3_player.NEXT";
         public static final String PAUSE_ACTION = "com.haruka.mp3_player.PAUSE";
         public static final String PLAY_ACTION = "com.haruka.mp3_player.PLAY";
         public static final String PREVIOUS_ACTION = "com.haruka.mp3_player.PREVIOUS";
+        public static final String REMOVE_ACTION = "com.haruka.mp3_player.REMOVE";
         public static final String RESUME_ACTION = "com.haruka.mp3_player.RESUME";
         public static final String SEEK_ACTION = "com.haruka.mp3_player.SEEK";
         public static final String STOP_ACTION = "com.haruka.mp3_player.STOP";
         public static final String SWITCH_REPEAT_ACTION = "com.haruka.mp3_player.SWITCH_REPEAT_ACTION";
         public static final String SWITCH_SHUFFLE_ACTION = "com.haruka.mp3_player.SWITCH_SHUFFLE_ACTION";
 
+        // For adding new tracks
+        public static final String TRACK_BUNDLE_KEY = "TRACK_BUNDLE_KEY";
+        public static final String TRACKS_BUNDLE_LIST_KEY = "TRACKS_BUNDLE_LIST_KEY";
+
+        // For playing
         public static final String PLAYLIST_ID_KEY = "PLAYLIST_ID_KEY";
         public static final String INITIAL_INDEX_KEY = "INITIAL_INDEX_KEY";
         public static final String PLAYLIST_BUNDLE_KEY = "PLAYLIST_BUNDLE_KEY";
         public static final String PLAYLIST_BUNDLE_LIST_KEY = "PLAYLIST_BUNDLE_LIST_KEY";
+
+        // For removing a track
+        public static final String REMOVE_INDEX_KEY = "REMOVE_INDEX_KEY";
+
+        // For seeking
         public static final String POSITION_MS_KEY = "POSITION_MS_KEY";
+
+        @NonNull
+        private ArrayList<MediaItem> fromBundles(ArrayList<Bundle> bundles) {
+            ArrayList<MediaItem> items = new ArrayList<>();
+            for (Bundle item : bundles) {
+                MediaItem mediaItem = MediaItem.CREATOR.fromBundle(item);
+                mediaItem = mediaItem.buildUpon()
+                        .setUri(mediaItem.requestMetadata.mediaUri)
+                        .build();
+
+                items.add(mediaItem);
+            }
+
+            return items;
+        }
 
         @Override
         public void onReceive(Context context, Intent intent) {
             Player player = getMediaSession().getPlayer();
-            switch (intent.getAction()) {
-                case NEXT_ACTION:
-                    player.seekToNextMediaItem();
-                    break;
+            try {
+                switch (intent.getAction()) {
+                    case ADD_ACTION:
+                        Bundle addBundle = intent.getBundleExtra(TRACK_BUNDLE_KEY);
+                        ArrayList<Bundle> addBundles;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            addBundles = addBundle.getParcelableArrayList(TRACKS_BUNDLE_LIST_KEY, Bundle.class);
+                        } else {
+                            addBundles = addBundle.getParcelableArrayList(TRACKS_BUNDLE_LIST_KEY);
+                        }
 
-                case PAUSE_ACTION:
-                    player.pause();
-                    break;
+                        player.addMediaItems(fromBundles(addBundles));
+                        break;
 
-                case PLAY_ACTION:
-                    playlistId = intent.getIntExtra(PLAYLIST_ID_KEY, -1);
-                    int index = intent.getIntExtra(INITIAL_INDEX_KEY, 0);
+                    case NEXT_ACTION:
+                        player.seekToNextMediaItem();
+                        break;
 
-                    Bundle bundle = intent.getBundleExtra(PLAYLIST_BUNDLE_KEY);
-                    ArrayList<Bundle> playlistBundle;
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        playlistBundle = bundle.getParcelableArrayList(PLAYLIST_BUNDLE_LIST_KEY, Bundle.class);
-                    } else {
-                        playlistBundle = bundle.getParcelableArrayList(PLAYLIST_BUNDLE_LIST_KEY);
-                    }
+                    case PAUSE_ACTION:
+                        player.pause();
+                        break;
 
-                    ArrayList<MediaItem> playlist = new ArrayList<>();
-                    for (Bundle item : playlistBundle) {
-                        MediaItem mediaItem = MediaItem.CREATOR.fromBundle(item);
-                        mediaItem = mediaItem.buildUpon()
-                                .setUri(mediaItem.requestMetadata.mediaUri)
-                                .build();
+                    case PLAY_ACTION:
+                        playlistId = intent.getIntExtra(PLAYLIST_ID_KEY, -1);
+                        int index = intent.getIntExtra(INITIAL_INDEX_KEY, 0);
 
-                        playlist.add(mediaItem);
-                    }
+                        Bundle bundle = intent.getBundleExtra(PLAYLIST_BUNDLE_KEY);
+                        ArrayList<Bundle> playlistBundle;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            playlistBundle = bundle.getParcelableArrayList(PLAYLIST_BUNDLE_LIST_KEY, Bundle.class);
+                        } else {
+                            playlistBundle = bundle.getParcelableArrayList(PLAYLIST_BUNDLE_LIST_KEY);
+                        }
 
-                    player.setMediaItems(playlist);
-                    player.prepare();
-                    player.seekTo(index, 0);
-                    player.play();
-                    createTrackNotification();
-                    break;
+                        player.setMediaItems(fromBundles(playlistBundle));
+                        player.prepare();
+                        player.seekTo(index, 0);
+                        player.play();
+                        break;
 
-                case PREVIOUS_ACTION:
-                    player.seekToPreviousMediaItem();
-                    break;
+                    case PREVIOUS_ACTION:
+                        player.seekToPreviousMediaItem();
+                        break;
 
-                case RESUME_ACTION:
-                    player.play();
-                    break;
+                    case REMOVE_ACTION:
+                        int removeIndex = intent.getIntExtra(REMOVE_INDEX_KEY, -1);
+                        player.removeMediaItem(removeIndex);
+                        break;
 
-                case SEEK_ACTION:
-                    long position = intent.getIntExtra(POSITION_MS_KEY, 0);
-                    player.seekTo(position);
-                    break;
+                    case RESUME_ACTION:
+                        player.play();
+                        break;
 
-                case STOP_ACTION:
-                    stopSelf();
-                    break;
+                    case SEEK_ACTION:
+                        long position = intent.getIntExtra(POSITION_MS_KEY, 0);
+                        player.seekTo(position);
+                        break;
 
-                case SWITCH_REPEAT_ACTION:
-                    player.setRepeatMode((player.getRepeatMode() + 2) % 3);
-                    break;
+                    case STOP_ACTION:
+                        stopSelf();
+                        break;
 
-                case SWITCH_SHUFFLE_ACTION:
-                    player.setShuffleModeEnabled(!player.getShuffleModeEnabled());
-                    break;
+                    case SWITCH_REPEAT_ACTION:
+                        player.setRepeatMode((player.getRepeatMode() + 2) % 3);
+                        break;
 
-                default:
-                    throw new UnsupportedOperationException(Utility.format("Unsupported action %s", intent.getAction()));
+                    case SWITCH_SHUFFLE_ACTION:
+                        player.setShuffleModeEnabled(!player.getShuffleModeEnabled());
+                        break;
+
+                    default:
+                        throw new UnsupportedOperationException(Utility.format("Unsupported action %s", intent.getAction()));
+                }
+
+            } finally {
+                createTrackNotification();
             }
         }
     }
@@ -205,10 +243,12 @@ public class MediaPlayerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(MediaControlReceiver.ADD_ACTION);
         intentFilter.addAction(MediaControlReceiver.NEXT_ACTION);
         intentFilter.addAction(MediaControlReceiver.PAUSE_ACTION);
         intentFilter.addAction(MediaControlReceiver.PLAY_ACTION);
         intentFilter.addAction(MediaControlReceiver.PREVIOUS_ACTION);
+        intentFilter.addAction(MediaControlReceiver.REMOVE_ACTION);
         intentFilter.addAction(MediaControlReceiver.RESUME_ACTION);
         intentFilter.addAction(MediaControlReceiver.SEEK_ACTION);
         intentFilter.addAction(MediaControlReceiver.STOP_ACTION);
@@ -285,6 +325,9 @@ public class MediaPlayerService extends Service {
         Player player = getMediaSession().getPlayer();
         MediaSession mediaSession = getMediaSession();
 
+        MediaItem current = player.getCurrentMediaItem();
+        if (current == null) return;
+
         NotificationCompat.Builder builder = getNotificationBuilder();
         Bitmap thumbnail = getThumbnail();
         if (thumbnail != null) {
@@ -293,16 +336,8 @@ public class MediaPlayerService extends Service {
         }
 
         builder.setContentIntent(getPlayingScreenPendingIntent())
-                .setContentText(
-                        player.getCurrentMediaItem() != null
-                                ? player.getCurrentMediaItem().mediaMetadata.artist
-                                : null
-                )
-                .setContentTitle(
-                        player.getCurrentMediaItem() != null
-                                ? player.getCurrentMediaItem().mediaMetadata.title
-                                : null
-                )
+                .setContentText(current.mediaMetadata.artist)
+                .setContentTitle(current.mediaMetadata.title)
                 .setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setShowWhen(false)

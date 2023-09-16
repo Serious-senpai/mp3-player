@@ -72,7 +72,7 @@ class ApplicationState {
   ApplicationState._({required this.database}) {
     _platform.setMethodCallHandler(
       (call) async {
-        print("Received $call");
+        // print("Received $call");
         assert(call.method == UPDATE_STATE_CHANNEL_METHOD);
         var arguments = call.arguments;
 
@@ -105,9 +105,22 @@ class ApplicationState {
     }
   }
 
+  /// Add new tracks to the current playlist in the native side
+  Future<void> add({List<Track>? tracks, Track? track}) async {
+    tracks ??= <Track>[];
+    if (track != null) tracks.add(track);
+
+    await _platform.invokeMethod(
+      "add",
+      {
+        "tracks": List<Map<String, String?>>.generate(tracks.length, (index) => tracks![index].data),
+      },
+    );
+  }
+
   /// Send data to the native side and request that a track should be played
   Future<void> play({required Playlist playlist, required int index}) async {
-    await _platform.invokeMapMethod(
+    await _platform.invokeMethod(
       "play",
       {
         "tracks": List<Map<String, String?>>.generate(playlist.items.length, (index) => playlist.items[index].data),
@@ -118,40 +131,31 @@ class ApplicationState {
   }
 
   /// Request a pause from the native side
-  Future<void> pause() => _platform.invokeMapMethod("pause");
+  Future<void> pause() => _platform.invokeMethod("pause");
+
+  /// Remove a track from the current playlist in the native side
+  Future<void> remove(int index) => _platform.invokeMethod("remove", {"index": index});
 
   /// Request a resume from the native side
-  Future<void> resume() => _platform.invokeMapMethod("resume");
+  Future<void> resume() => _platform.invokeMethod("resume");
 
   /// Request to the native side that the ExoPlayer should seek to the specified [duration]
-  Future<void> seek(Duration duration) => _platform.invokeMapMethod("seek", {"positionMs": duration.inMilliseconds});
+  Future<void> seek(Duration duration) => _platform.invokeMethod("seek", {"positionMs": duration.inMilliseconds});
 
   /// Request to the native side to skip to the next track in [currentPlaylist]
-  Future<void> next() => _platform.invokeMapMethod("next");
+  Future<void> next() => _platform.invokeMethod("next");
 
   /// Request to the native side to skip to the previous track in the [currentPlaylist]
-  Future<void> previous() => _platform.invokeMapMethod("previous");
+  Future<void> previous() => _platform.invokeMethod("previous");
 
   /// Request to the native side to stop the ExoPlayer
-  Future<void> stop() => _platform.invokeMapMethod("stop");
+  Future<void> stop() => _platform.invokeMethod("stop");
 
   /// Toggle the repeat mode of the native ExoPlayer
-  Future<void> toggleRepeat() => _platform.invokeMapMethod("toggleRepeat");
+  Future<void> toggleRepeat() => _platform.invokeMethod("toggleRepeat");
 
   /// Toggle the shuffle mode of the player
-  Future<void> toggleShuffle() => _platform.invokeMapMethod("toggleShuffle");
-
-  /// Update the native player's metadata
-  Future<void> update({Playlist? playlist, int? index}) async {
-    var data = <String, dynamic>{};
-    if (playlist != null) {
-      data["tracks"] = List<Map<String, String?>>.generate(playlist.items.length, (index) => playlist.items[index].data);
-      data["playlistId"] = playlist.id;
-    }
-    if (index != null) data["index"] = index;
-
-    await _platform.invokeMapMethod("update", data);
-  }
+  Future<void> toggleShuffle() => _platform.invokeMethod("toggleShuffle");
 
   static ApplicationState? _instance;
   static final _instanceLock = Lock();

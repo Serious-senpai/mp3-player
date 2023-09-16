@@ -15,6 +15,7 @@ import com.haruka.mp3_player.MediaPlayerService;
 import com.haruka.mp3_player.Utility;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -72,11 +73,65 @@ public class MediaPlayerHandler extends AbstractMethodChannelPlugin {
         super(flutterActivity, "com.haruka.mp3_player/player");
     }
 
+    @NonNull
+    private ArrayList<Bundle> getTracksList(@NonNull JSONArray tracks) throws JSONException {
+        ArrayList<Bundle> bundles = new ArrayList<>();
+        for (int i = 0; i < tracks.length(); i++) {
+            JSONObject data = tracks.getJSONObject(i);
+            String uri = data.getString("uri");
+            String title = data.getString("title");
+
+            String thumbnailUri = data.getString("thumbnailPath");
+            if (data.isNull("thumbnailPath")) thumbnailUri = null;
+
+            String artist = data.getString("artist");
+            if (data.isNull("artist")) artist = null;
+
+            MediaItem mediaItem = new MediaItem.Builder()
+                    .setMediaMetadata(
+                            new MediaMetadata.Builder()
+                                    .setArtist(artist)
+                                    .setArtworkUri(thumbnailUri != null ? Utility.uriFromFile(thumbnailUri) : null)
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                                    .setTitle(title)
+                                    .build()
+                    )
+                    .setRequestMetadata(
+                            new MediaItem.RequestMetadata.Builder()
+                                    .setMediaUri(Utility.uriFromFile(uri))
+                                    .build()
+                    )
+                    .setUri(uri)
+                    .build();
+
+            bundles.add(mediaItem.toBundle());
+        }
+
+        return bundles;
+    }
+
     @Override
     protected void handler(@NonNull MethodCall method, @NonNull MethodChannel.Result result, @NonNull FlutterPluginBinding binding) throws Exception {
         Context context = binding.getApplicationContext();
         Intent intent = new Intent(), serviceIntent = new Intent(context, MediaPlayerService.class);
         switch (method.method) {
+            case "add":
+                JSONArray addTracks = method.argument("tracks");
+                assert addTracks != null;
+
+                Bundle addBundle = new Bundle();
+                addBundle.putParcelableArrayList(
+                        MediaPlayerService.MediaControlReceiver.TRACKS_BUNDLE_LIST_KEY,
+                        getTracksList(addTracks)
+                );
+
+                intent.setAction(MediaPlayerService.MediaControlReceiver.ADD_ACTION);
+                intent.putExtra(MediaPlayerService.MediaControlReceiver.TRACK_BUNDLE_KEY, addBundle);
+
+                context.sendBroadcast(intent);
+                result.success(null);
+                break;
+
             case "play":
                 JSONArray tracks = method.argument("tracks");
                 assert tracks != null;
@@ -91,48 +146,11 @@ public class MediaPlayerHandler extends AbstractMethodChannelPlugin {
                 serviceIntent.putExtra(MediaPlayerService.MediaControlReceiver.PLAYLIST_ID_KEY, playlistId);
                 serviceIntent.putExtra(MediaPlayerService.MediaControlReceiver.INITIAL_INDEX_KEY, index);
 
-                ArrayList<Bundle> bundles = new ArrayList<>();
-                for (int i = 0; i < tracks.length(); i++) {
-                    JSONObject data = tracks.getJSONObject(i);
-                    String uri = data.getString("uri");
-                    String thumbnailUri = null;
-                    try {
-                        assert !data.isNull("thumbnailPath");
-                        thumbnailUri = data.getString("thumbnailPath");
-                    } catch (AssertionError ignored) {
-                    }
-
-                    String artist = null;
-                    try {
-                        assert !data.isNull("artist");
-                        artist = data.getString("artist");
-                    } catch (AssertionError ignored) {
-                    }
-
-                    String title = data.getString("title");
-
-                    MediaItem mediaItem = new MediaItem.Builder()
-                            .setMediaMetadata(
-                                    new MediaMetadata.Builder()
-                                            .setArtist(artist)
-                                            .setArtworkUri(thumbnailUri != null ? Utility.uriFromFile(thumbnailUri) : null)
-                                            .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                                            .setTitle(title)
-                                            .build()
-                            )
-                            .setRequestMetadata(
-                                    new MediaItem.RequestMetadata.Builder()
-                                            .setMediaUri(Utility.uriFromFile(uri))
-                                            .build()
-                            )
-                            .setUri(uri)
-                            .build();
-
-                    bundles.add(mediaItem.toBundle());
-                }
-
                 Bundle bundle = new Bundle();
-                bundle.putParcelableArrayList(MediaPlayerService.MediaControlReceiver.PLAYLIST_BUNDLE_LIST_KEY, bundles);
+                bundle.putParcelableArrayList(
+                        MediaPlayerService.MediaControlReceiver.PLAYLIST_BUNDLE_LIST_KEY,
+                        getTracksList(tracks)
+                );
                 serviceIntent.putExtra(MediaPlayerService.MediaControlReceiver.PLAYLIST_BUNDLE_KEY, bundle);
 
                 flutterActivity.startService(serviceIntent);
@@ -141,6 +159,17 @@ public class MediaPlayerHandler extends AbstractMethodChannelPlugin {
 
             case "pause":
                 intent.setAction(MediaPlayerService.MediaControlReceiver.PAUSE_ACTION);
+                context.sendBroadcast(intent);
+                result.success(null);
+                break;
+
+            case "remove":
+                intent.setAction(MediaPlayerService.MediaControlReceiver.REMOVE_ACTION);
+
+                Integer removeIndex = method.argument("index");
+                assert removeIndex != null;
+                intent.putExtra(MediaPlayerService.MediaControlReceiver.REMOVE_INDEX_KEY, removeIndex);
+
                 context.sendBroadcast(intent);
                 result.success(null);
                 break;

@@ -90,7 +90,7 @@ class Playlist {
     await push();
 
     if (isPlaying) {
-      await _state.update(playlist: this);
+      await _state.add(tracks: List<Track>.from(tracks));
     }
   }
 
@@ -105,11 +105,7 @@ class Playlist {
     items.removeAt(index);
 
     if (isPlaying) {
-      if (index < _state.index) {
-        await _state.update(playlist: this, index: _state.index - 1);
-      } else if (index == _state.index) {
-        await _state.stop();
-      }
+      await _state.remove(index);
     }
 
     await push();

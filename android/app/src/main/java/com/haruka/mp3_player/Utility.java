@@ -15,6 +15,8 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -22,8 +24,10 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 
 import io.flutter.Log;
+import io.flutter.plugin.common.MethodCall;
 
 public class Utility {
     public static class ThreadingTask<T> implements Runnable {
@@ -134,8 +138,8 @@ public class Utility {
 
     private static final String LOG_TAG = "HARUKA.MP3_PLAYER.NATIVE";
 
-    public static void log(@NonNull String content) {
-        log(LogLevel.INFO, content);
+    public static void log(@NonNull String content, Object... args) {
+        log(LogLevel.INFO, format(content, args));
     }
 
     public static void log(@NonNull LogLevel logLevel, @NonNull String content) {
@@ -247,5 +251,16 @@ public class Utility {
             }
         }
         return false;
+    }
+
+    public static boolean isNullOrDoesNotExist(@NonNull MethodCall method, @NonNull String key) {
+        Object o = null;
+        if (method.arguments instanceof Map) {
+            o = ((Map<?, ?>) method.arguments).get(key);
+        } else if (method.arguments instanceof JSONObject) {
+            o = ((JSONObject) method.arguments).opt(key);
+        }
+
+        return o != null;
     }
 }
