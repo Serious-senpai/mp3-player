@@ -146,12 +146,12 @@ Future<void> launchUri(String uri) => _platform.invokeMapMethod("launchUri", {"u
 
 /// Get the absolute path to the device's external storages
 /// See also: https://developer.android.com/reference/android/content/Context#getExternalFilesDirs(java.lang.String)
-Future<List<Directory>?> getExternalFilesDirs() async {
+Future<List<Directory>?> getExternalFilesDirs({required bool traceToRoot}) async {
   var result = await _platform.invokeMapMethod("getExternalFilesDirs");
   var paths = List<String>.from(result?["paths"]);
   return List<Directory>.generate(
     paths.length,
-    (index) => Directory(normalize(join(paths[index], "../../../.."))),
+    (index) => Directory(traceToRoot ? normalize(join(paths[index], "../../../..")) : paths[index]),
   );
 }
 

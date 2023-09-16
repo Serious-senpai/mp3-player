@@ -150,7 +150,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> with PageStateWithDrawer<
                       leading: const Icon(Icons.add_outlined),
                       title: const Text("Add a new track(s)"),
                       onTap: () async {
-                        var directories = await getExternalFilesDirs() ?? [];
+                        var directories = await getExternalFilesDirs(traceToRoot: true) ?? [];
 
                         if (!mounted) return;
                         var rootDirectory = await showDialog<Directory>(

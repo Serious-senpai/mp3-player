@@ -159,7 +159,7 @@ public class Utility {
 
     @NonNull
     public static String format(@NonNull String format, Object... args) {
-        return String.format(Locale.US, format, args);
+        return String.format(Locale.getDefault(), format, args);
     }
 
     @NonNull

@@ -14,7 +14,8 @@ import "../utils.dart";
 double _imageHeight(double width) => 9.0 * width / 16.0;
 
 Future<String?> _selectDownloadLocation(BuildContext context, String dialogTitle) async {
-  var directories = await getExternalFilesDirs() ?? [];
+  var sdkVersion = await getSDKVersion() ?? 0;
+  var directories = await getExternalFilesDirs(traceToRoot: sdkVersion < 33) ?? [];
 
   if (context.mounted) {
     var rootDirectory = await showDialog<Directory>(
@@ -28,7 +29,7 @@ Future<String?> _selectDownloadLocation(BuildContext context, String dialogTitle
               value: directories[index],
               child: Text(
                 directories[index].path,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
               ),
             ),
           ),
